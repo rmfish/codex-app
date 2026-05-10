@@ -1,0 +1,2 @@
+import{i as e}from"./lib-CaxB7fy8.js";import{K as t,y as n}from"./vscode-api-Dc9pX2Bc.js";var r=t(n,`hidden`),i=e(`has-seen-remote-connections-home-announcement`,!1);export{r as n,i as t};
+//# sourceMappingURL=remote-connections-onboarding-signals-10WUVpN0.js.map

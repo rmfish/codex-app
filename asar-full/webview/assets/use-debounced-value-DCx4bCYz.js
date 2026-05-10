@@ -1,0 +1,2 @@
+import{s as e}from"./chunk-Bj-mKKzh.js";import{n as t}from"./jsx-runtime-CtnhcczV.js";import{t as n}from"./compiler-runtime-DU4FoEWg.js";var r=n(),i=e(t(),1);function a(e,t){let n=(0,r.c)(4),[a,o]=(0,i.useState)(e),s,c;return n[0]!==t||n[1]!==e?(s=()=>{let n=window.setTimeout(()=>o(e),t);return()=>window.clearTimeout(n)},c=[e,t],n[0]=t,n[1]=e,n[2]=s,n[3]=c):(s=n[2],c=n[3]),(0,i.useEffect)(s,c),a}export{a as t};
+//# sourceMappingURL=use-debounced-value-DCx4bCYz.js.map

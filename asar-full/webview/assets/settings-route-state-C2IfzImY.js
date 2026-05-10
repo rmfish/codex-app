@@ -1,0 +1,2 @@
+import{_ as e,p as t}from"./path-browserify-fgDTXxoN.js";var n=t({workspaceRoot:e().min(1).nullable().optional()}).passthrough();function r(e){let t=n.safeParse(e);return!t.success||!Object.hasOwn(t.data,`workspaceRoot`)?{hasValue:!1,workspaceRoot:null}:{hasValue:!0,workspaceRoot:t.data.workspaceRoot??null}}export{r as t};
+//# sourceMappingURL=settings-route-state-C2IfzImY.js.map

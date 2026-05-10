@@ -1,0 +1,2 @@
+import{Cn as e}from"./src-CVmnixyG.js";import{d as t}from"./chunk-LFPYN7LY-Cafl-tZa.js";import{t as n}from"./compiler-runtime-DU4FoEWg.js";var r=n();function i(){let n=(0,r.c)(2),i=t(`/local/:conversationId`),a=t(`/remote/:conversationId`),o=t(`/hotkey-window/thread/:conversationId`),s=i?.params.conversationId??a?.params.conversationId??o?.params.conversationId,c;return n[0]===s?c=n[1]:(c=s?e(s):null,n[0]=s,n[1]=c),c}export{i as t};
+//# sourceMappingURL=use-active-conversation-id-AihA8Dfz.js.map

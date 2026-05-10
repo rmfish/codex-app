@@ -1,0 +1,2 @@
+import{ta as e}from"./app-server-manager-signals-C1h8B-R-.js";import{t}from"./compiler-runtime-DU4FoEWg.js";import{a as n}from"./composer-atoms-58_nbOg4.js";var r=t();function i(){let t=(0,r.c)(3),[i,a]=e(n),o;return t[0]!==i||t[1]!==a?(o={enterBehavior:i,setEnterBehavior:a,isLoading:!1},t[0]=i,t[1]=a,t[2]=o):o=t[2],o}export{i as t};
+//# sourceMappingURL=use-enter-behavior-TYqSJmjF.js.map

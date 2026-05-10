@@ -1,0 +1,2 @@
+import{b as e}from"./vscode-api-Dc9pX2Bc.js";function t(t,n){return n==null||t===e||n.some(e=>e.hostId===t)?t:e}function n(t,n){return t.filter(t=>n===e?t.projectKind===`local`:t.projectKind===`remote`&&t.hostId===n)}export{t as n,n as t};
+//# sourceMappingURL=settings-host-selection-C7saIjtX.js.map

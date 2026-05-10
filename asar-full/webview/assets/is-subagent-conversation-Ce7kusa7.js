@@ -1,0 +1,2 @@
+import{$i as e}from"./app-server-manager-signals-C1h8B-R-.js";function t(t){return e(t?.source)?.parentThreadId!=null}function n(e,n){return!n&&t(e)}export{n,t};
+//# sourceMappingURL=is-subagent-conversation-Ce7kusa7.js.map

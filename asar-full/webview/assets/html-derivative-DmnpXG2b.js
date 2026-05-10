@@ -1,0 +1,1 @@
+import{t as e}from"./html-derivative-GTdc8k_h.js";export{e as default};

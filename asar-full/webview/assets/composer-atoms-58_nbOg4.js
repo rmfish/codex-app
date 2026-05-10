@@ -1,0 +1,2 @@
+import{_r as e}from"./app-server-manager-signals-C1h8B-R-.js";import{st as t}from"./vscode-api-Dc9pX2Bc.js";var n=e(`skip-full-access-confirm`,!1),r=e(`composer-best-of-n`,1),i=e(`prompt-history`,[]),a=e(`composer-auto-context-enabled`,!0),o=e(`enter-behavior`,`enter`),s=t(null),c=t({});export{o as a,c as i,s as n,i as o,a as r,n as s,r as t};
+//# sourceMappingURL=composer-atoms-58_nbOg4.js.map
