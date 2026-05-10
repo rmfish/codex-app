@@ -1,7 +1,14 @@
 import type { MouseEvent } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { selectCurrentThread, useAppStore } from "@/app/store";
-import { CodexIcon, SearchIcon, SettingsIcon, SkillsIcon, PlusIcon } from "@/components/AppIcons";
+import {
+  ClockIcon,
+  CodexIcon,
+  SearchIcon,
+  SettingsIcon,
+  SkillsIcon,
+  PlusIcon,
+} from "@/components/AppIcons";
 
 const menuItems = ["File", "Edit", "View", "Window", "Help"] as const;
 
@@ -21,7 +28,7 @@ const primaryNav: NavItem[] = [
   {
     key: "automations",
     label: "Automations",
-    icon: CodexIcon,
+    icon: ClockIcon,
     to: "/automations",
   },
 ];
@@ -37,6 +44,8 @@ export function Shell() {
   const threads = useAppStore((state) => state.threads);
   const selectThread = useAppStore((state) => state.selectThread);
   const currentThread = useAppStore(selectCurrentThread);
+  const workspaces = useAppStore((state) => state.settings.localEnvironments.workspaces);
+  const primaryWorkspace = workspaces[0];
 
   const isWindowsMenuBarVisible =
     bootstrap.platform === "win32" || bootstrap.platform === "windows";
@@ -98,46 +107,65 @@ export function Shell() {
 
               if (onClick) {
                 return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={
-                      location.pathname === "/"
+                  <div key={key} className="codex-sidebar__nav-line">
+                    <button
+                      type="button"
+                      className={
+                        location.pathname === "/"
+                          ? "codex-sidebar__row codex-sidebar__row--active"
+                          : "codex-sidebar__row"
+                      }
+                      onClick={() => {
+                        void onClick();
+                      }}
+                    >
+                      <span className="codex-sidebar__icon">
+                        <Icon />
+                      </span>
+                      <span>{label}</span>
+                    </button>
+                  </div>
+                );
+              }
+
+              const isSearch = key === "search";
+
+              return (
+                <div key={key} className="codex-sidebar__nav-line">
+                  <NavLink
+                    to={to}
+                    className={({ isActive }) =>
+                      isActive
                         ? "codex-sidebar__row codex-sidebar__row--active"
                         : "codex-sidebar__row"
                     }
-                    onClick={() => {
-                      void onClick();
-                    }}
                   >
                     <span className="codex-sidebar__icon">
                       <Icon />
                     </span>
                     <span>{label}</span>
-                  </button>
-                );
-              }
-
-              return (
-                <NavLink
-                  key={key}
-                  to={to}
-                  className={({ isActive }) =>
-                    isActive
-                      ? "codex-sidebar__row codex-sidebar__row--active"
-                      : "codex-sidebar__row"
-                  }
-                >
-                  <span className="codex-sidebar__icon">
-                    <Icon />
-                  </span>
-                  <span>{label}</span>
-                </NavLink>
+                    {isSearch ? (
+                      <span className="codex-sidebar__shortcut">Ctrl+G</span>
+                    ) : null}
+                  </NavLink>
+                </div>
               );
             })}
           </div>
 
+          <div className="codex-sidebar__section">
+            <div className="codex-sidebar__section-label">Projects</div>
+            {primaryWorkspace ? (
+              <button type="button" className="codex-sidebar__workspace">
+                <span className="codex-sidebar__workspace-name">
+                  {primaryWorkspace.name}
+                </span>
+              </button>
+            ) : null}
+          </div>
+
           <div className="codex-sidebar__section codex-sidebar__section--fill">
+            <div className="codex-sidebar__section-label">Chats</div>
             <div className="codex-thread-list">
               {threads.map((thread) => (
                 <button
