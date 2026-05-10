@@ -4,6 +4,7 @@ import {
   ipcMain,
   Menu,
   nativeTheme,
+  globalShortcut,
   shell,
 } from "electron";
 import { join } from "node:path";
@@ -16,6 +17,7 @@ import type {
   CreateThreadInput,
   DesktopBootstrapState,
   SettingsModel,
+  WindowHotkeyState,
 } from "../shared/app-model";
 import { desktopChannels } from "../shared/ipc";
 import {
@@ -38,6 +40,7 @@ const preloadEntry = join(__dirname, "preload.js");
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 const appVersion = app.getVersion();
 const dataStore = new AppDataStore(join(app.getPath("userData"), "app-state.json"));
+let currentWindowHotkey: string | null = null;
 
 function resolveSystemTheme(): "light" | "dark" {
   return nativeTheme.shouldUseDarkColors ? "dark" : "light";
@@ -165,6 +168,53 @@ function buildApplicationMenu(menuId: "file" | "edit" | "view" | "window" | "hel
   }
 }
 
+function normalizeAccelerator(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().replace(/\s+/g, "");
+  return normalized.length > 0 ? normalized : null;
+}
+
+function getWindowHotkeyState(): WindowHotkeyState {
+  return {
+    supported: true,
+    hotkey: currentWindowHotkey,
+  };
+}
+
+function registerWindowHotkey(accelerator: string | null) {
+  globalShortcut.unregisterAll();
+  currentWindowHotkey = null;
+
+  const normalized = normalizeAccelerator(accelerator);
+  if (!normalized) {
+    return getWindowHotkeyState();
+  }
+
+  const registered = globalShortcut.register(normalized, () => {
+    const window = BrowserWindow.getAllWindows().find((entry) => !entry.isDestroyed());
+    if (!window) {
+      return;
+    }
+
+    if (window.isMinimized()) {
+      window.restore();
+    }
+
+    window.show();
+    window.focus();
+  });
+
+  if (!registered) {
+    throw new Error(`Unable to register global shortcut: ${normalized}`);
+  }
+
+  currentWindowHotkey = normalized;
+  return getWindowHotkeyState();
+}
+
 function registerIpcHandlers() {
   ipcMain.handle(desktopChannels.bootstrapState, () => getBootstrapState());
   ipcMain.handle(desktopChannels.openExternal, async (_event, target: string) => {
@@ -174,6 +224,11 @@ function registerIpcHandlers() {
 
     await shell.openExternal(target);
   });
+  ipcMain.handle(desktopChannels.getWindowHotkeyState, () => getWindowHotkeyState());
+  ipcMain.handle(desktopChannels.setWindowHotkey, (_event, accelerator: string | null) =>
+    registerWindowHotkey(accelerator),
+  );
+  ipcMain.handle(desktopChannels.clearWindowHotkey, () => registerWindowHotkey(null));
   ipcMain.handle(
     desktopChannels.showApplicationMenu,
     async (
@@ -256,7 +311,16 @@ function registerIpcHandlers() {
 }
 
 app.whenReady().then(() => {
-  void dataStore.load();
+  void dataStore
+    .load()
+    .then(async () => {
+      try {
+        const snapshot = await dataStore.getSnapshot();
+        registerWindowHotkey(snapshot.settings.general.popoutWindowHotkey);
+      } catch {
+        currentWindowHotkey = null;
+      }
+    });
   registerIpcHandlers();
   createMainWindow();
 
@@ -273,4 +337,8 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });

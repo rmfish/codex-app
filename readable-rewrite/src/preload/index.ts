@@ -8,6 +8,7 @@ import type {
   DesktopBootstrapState,
   PersistedAppState,
   SettingsModel,
+  WindowHotkeyState,
 } from "../shared/app-model";
 import { desktopChannels } from "../shared/ipc";
 
@@ -46,6 +47,9 @@ type DesktopDataApi = {
 type DesktopApi = {
   getBootstrapState: () => Promise<DesktopBootstrapState>;
   openExternal: (url: string) => Promise<void>;
+  getWindowHotkeyState: () => Promise<WindowHotkeyState>;
+  setWindowHotkey: (accelerator: string | null) => Promise<WindowHotkeyState>;
+  clearWindowHotkey: () => Promise<WindowHotkeyState>;
   showApplicationMenu: (
     menuId: "file" | "edit" | "view" | "window" | "help",
     x: number,
@@ -58,6 +62,12 @@ type DesktopApi = {
 const desktopApi: DesktopApi = {
   getBootstrapState: () => ipcRenderer.invoke(desktopChannels.bootstrapState),
   openExternal: (url) => ipcRenderer.invoke(desktopChannels.openExternal, url),
+  getWindowHotkeyState: () =>
+    ipcRenderer.invoke(desktopChannels.getWindowHotkeyState),
+  setWindowHotkey: (accelerator) =>
+    ipcRenderer.invoke(desktopChannels.setWindowHotkey, accelerator),
+  clearWindowHotkey: () =>
+    ipcRenderer.invoke(desktopChannels.clearWindowHotkey),
   showApplicationMenu: (menuId, x, y) =>
     ipcRenderer.invoke(desktopChannels.showApplicationMenu, menuId, x, y),
   onThemeChanged: (callback) => {

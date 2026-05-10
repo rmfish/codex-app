@@ -5,11 +5,15 @@ import type {
   DesktopBootstrapState,
   PersistedAppState,
   SettingsModel,
+  WindowHotkeyState,
 } from "@shared/app-model";
 
 type DesktopApi = {
   getBootstrapState: () => Promise<DesktopBootstrapState>;
   openExternal: (url: string) => Promise<void>;
+  getWindowHotkeyState: () => Promise<WindowHotkeyState>;
+  setWindowHotkey: (accelerator: string | null) => Promise<WindowHotkeyState>;
+  clearWindowHotkey: () => Promise<WindowHotkeyState>;
   showApplicationMenu: (
     menuId: "file" | "edit" | "view" | "window" | "help",
     x: number,

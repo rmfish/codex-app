@@ -94,7 +94,6 @@ export function HomePage() {
                 <div className="composer-footer codex-composer__footer">
                   <div className="codex-home__composer-pills">
                     <HomeComposerPill label="Default permissions" />
-                    <HomeComposerPill label="Extra High" />
                     <HomeComposerPill label="Plan" showChevron={false} />
                   </div>
                   <div className="codex-composer__footer-right codex-composer__footer-right--standalone">

@@ -1,14 +1,7 @@
 import type { MouseEvent } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { selectCurrentThread, useAppStore } from "@/app/store";
-import {
-  CodexIcon,
-  FolderIcon,
-  SearchIcon,
-  SettingsIcon,
-  SkillsIcon,
-  PlusIcon,
-} from "@/components/AppIcons";
+import { CodexIcon, SearchIcon, SettingsIcon, SkillsIcon, PlusIcon } from "@/components/AppIcons";
 
 const menuItems = ["File", "Edit", "View", "Window", "Help"] as const;
 
@@ -45,9 +38,6 @@ export function Shell() {
   const selectThread = useAppStore((state) => state.selectThread);
   const currentThread = useAppStore(selectCurrentThread);
 
-  const projects = Array.from(
-    new Map(threads.map((thread) => [thread.workspace, thread.workspace])).values(),
-  );
   const isWindowsMenuBarVisible =
     bootstrap.platform === "win32" || bootstrap.platform === "windows";
 
@@ -84,7 +74,7 @@ export function Shell() {
       ) : null}
 
       <div className="codex-shell__body">
-        <aside className="codex-sidebar">
+        <aside className="window-fx-sidebar-surface codex-sidebar">
           <div className="codex-sidebar__top">
             {primaryNav.map(({ disabled, icon: Icon, key, label, to }) => {
               if (disabled) {
@@ -147,38 +137,7 @@ export function Shell() {
             })}
           </div>
 
-          <div className="codex-sidebar__section">
-            <div className="codex-sidebar__heading">Projects</div>
-            <div className="codex-sidebar__list">
-              {projects.map((workspace) => (
-                <button
-                  key={workspace}
-                  type="button"
-                  className={
-                    currentThread.workspace === workspace
-                      ? "codex-sidebar__row codex-sidebar__row--active"
-                      : "codex-sidebar__row"
-                  }
-                  onClick={() => {
-                    const nextThread = threads.find((thread) => thread.workspace === workspace);
-                    if (!nextThread) {
-                      return;
-                    }
-                    navigate("/");
-                    void selectThread(nextThread.id);
-                  }}
-                >
-                  <span className="codex-sidebar__icon">
-                    <FolderIcon />
-                  </span>
-                  <span>{workspace}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="codex-sidebar__section codex-sidebar__section--fill">
-            <div className="codex-sidebar__heading">Chats</div>
             <div className="codex-thread-list">
               {threads.map((thread) => (
                 <button
@@ -220,8 +179,13 @@ export function Shell() {
           </div>
         </aside>
 
-        <main className="main-surface codex-main">
-          <Outlet />
+        <main
+          className="app-shell-main-content-viewport codex-main"
+          data-app-shell-main-content-layout="thread-edge-scroll"
+        >
+          <div className="app-shell-main-content-frame main-surface codex-main__surface">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

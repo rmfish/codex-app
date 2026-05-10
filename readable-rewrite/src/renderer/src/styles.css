@@ -76,13 +76,12 @@ a {
 }
 
 .codex-sidebar {
-  width: 300px;
-  min-width: 300px;
-  padding: 8px 8px 10px;
+  width: var(--spacing-token-sidebar);
+  min-width: var(--spacing-token-sidebar);
+  padding: 0 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  background: var(--color-token-side-bar-background);
+  gap: 10px;
   border-right: 1px solid var(--color-token-border-default);
   color: var(--color-token-foreground);
 }
@@ -108,6 +107,10 @@ a {
   gap: 8px;
 }
 
+.codex-sidebar__top {
+  padding-top: var(--padding-panel);
+}
+
 .codex-sidebar__section {
   display: flex;
   flex-direction: column;
@@ -117,13 +120,6 @@ a {
 .codex-sidebar__section--fill {
   min-height: 0;
   flex: 1;
-}
-
-.codex-sidebar__heading {
-  padding: 0 8px;
-  color: var(--color-token-text-tertiary);
-  font-size: 11px;
-  line-height: 16px;
 }
 
 .codex-sidebar__row,
@@ -238,6 +234,13 @@ a {
   flex-direction: column;
 }
 
+.codex-main__surface {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .codex-home {
   min-height: 0;
   flex: 1;
@@ -247,19 +250,25 @@ a {
 
 .codex-composer {
   width: 100%;
-  border: 1px solid var(--color-token-border-default);
-  border-radius: var(--radius-2xl);
-  background: var(--color-token-main-surface-primary);
+  border-radius: 1.5rem;
+  background: color-mix(
+    in srgb,
+    var(--color-token-input-background) 90%,
+    transparent
+  );
   overflow: hidden;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid color-mix(in srgb, black 10%, transparent);
 }
 
 .codex-composer__body {
-  padding: 16px 18px 0;
+  padding: 16px 18px 6px;
 }
 
 .codex-composer__input {
   width: 100%;
-  min-height: 94px;
+  min-height: 72px;
   resize: none;
   border: 0;
   outline: 0;
@@ -279,13 +288,11 @@ a {
   flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: 8px;
   overflow: hidden;
-  margin-inline: -1px;
-  margin-top: -26px;
-  border-radius: 0 0 var(--radius-2xl) var(--radius-2xl);
-  background: var(--color-token-side-bar-background);
-  padding: 25px 8px 8px;
+  margin-top: 0;
+  background: transparent;
+  padding: 0 10px 10px;
 }
 
 .codex-composer__footer-right,
@@ -348,7 +355,7 @@ a {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .codex-pill__chevron {
@@ -364,7 +371,7 @@ a {
   gap: 6px;
   border: 1px solid var(--color-token-border-default);
   border-radius: 999px;
-  background: var(--color-background-elevated-primary);
+  background: var(--color-token-bg-fog);
   padding: 0 10px;
   color: var(--color-token-text-secondary);
   cursor: var(--cursor-interaction);
@@ -390,7 +397,7 @@ a {
 }
 
 .codex-pill--static:hover {
-  background: var(--color-background-elevated-primary);
+  background: var(--color-token-bg-fog);
 }
 
 .codex-icon-button,

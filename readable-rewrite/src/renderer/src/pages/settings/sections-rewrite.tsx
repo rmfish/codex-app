@@ -1,10 +1,12 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
-  CheckIcon,
-  ChevronDownIcon,
-  EverydayChatIcon,
-  TerminalIcon,
-} from "@/components/AppIcons";
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { CheckIcon, ChevronDownIcon } from "@/components/AppIcons";
 import { useAppStore } from "@/app/store";
 import type {
   AgentEnvironment,
@@ -12,7 +14,7 @@ import type {
   GeneralSettingsModel,
 } from "@shared/app-model";
 
-type SettingsSectionDefinition = {
+export type SettingsSectionDefinition = {
   id: string;
   title: string;
   description: string;
@@ -23,6 +25,15 @@ type Option<T extends string> = {
   value: T;
   label: string;
   description?: string;
+};
+
+type HotkeyEventLike = {
+  altKey: boolean;
+  code: string;
+  ctrlKey: boolean;
+  key: string;
+  metaKey: boolean;
+  shiftKey: boolean;
 };
 
 const vscodeIconUrl = new URL(
@@ -143,6 +154,36 @@ const supportedLocales = [
   "zh-TW",
 ] as const;
 
+const hotkeyCodeMap: Record<string, string> = {
+  Backquote: "Backquote",
+  Backslash: "Backslash",
+  BracketLeft: "LeftBracket",
+  BracketRight: "RightBracket",
+  Comma: "Comma",
+  Equal: "Plus",
+  Minus: "Minus",
+  Period: "Period",
+  Quote: "Quote",
+  Semicolon: "Semicolon",
+  Slash: "Slash",
+};
+
+const hotkeyDisplayMap: Record<string, string> = {
+  Backquote: "`",
+  Backslash: "\\",
+  Command: "Cmd",
+  Comma: ",",
+  Control: "Ctrl",
+  Esc: "Esc",
+  LeftBracket: "[",
+  Period: ".",
+  Plus: "+",
+  Quote: "'",
+  RightBracket: "]",
+  Semicolon: ";",
+  Slash: "/",
+};
+
 function clsx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
@@ -256,7 +297,7 @@ function SettingsRow({
   return (
     <div
       className={clsx(
-        "flex min-h-10 items-center justify-between gap-3 px-4 py-0.5 max-sm:min-h-0 max-sm:flex-col max-sm:items-stretch",
+        "flex min-h-10 items-center justify-between gap-3 px-4 py-1 max-sm:min-h-0 max-sm:flex-col max-sm:items-stretch",
         className,
       )}
     >
@@ -323,6 +364,30 @@ function SettingsToggle({
   );
 }
 
+function SettingsActionButton({
+  children,
+  disabled = false,
+  onClick,
+}: {
+  children: ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      className={clsx(
+        "inline-flex h-8 items-center justify-center rounded-lg border border-token-border bg-token-bg-primary px-3 text-sm text-token-text-primary shadow-sm",
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-interaction hover:bg-token-list-hover-background",
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
 function MenuTrigger({
   children,
   disabled = false,
@@ -339,8 +404,7 @@ function MenuTrigger({
       type="button"
       disabled={disabled}
       className={clsx(
-        "h-8 w-[240px] justify-between rounded-lg border border-token-border bg-token-bg-primary px-2.5 py-0 shadow-sm max-sm:w-full",
-        "inline-flex items-center gap-0.5 text-sm text-token-text-primary",
+        "inline-flex h-8 w-[240px] items-center justify-between gap-0.5 rounded-lg border border-token-border bg-token-bg-primary px-2.5 py-0 text-sm text-token-text-primary shadow-sm max-sm:w-full",
         disabled ? "cursor-not-allowed opacity-60" : "cursor-interaction",
         className,
       )}
@@ -352,7 +416,7 @@ function MenuTrigger({
   );
 }
 
-function DropdownMenu<T extends string>({
+function DropdownMenu({
   align = "end",
   children,
   contentClassName,
@@ -444,60 +508,6 @@ function DropdownItem({
   );
 }
 
-function WorkModeCard({
-  selected,
-  title,
-  description,
-  icon: Icon,
-  disabled = false,
-  onSelect,
-}: {
-  selected: boolean;
-  title: string;
-  description: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  disabled?: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      disabled={disabled}
-      className={clsx(
-        "cursor-interaction flex min-h-[62px] min-w-0 items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-token-focus-border disabled:cursor-not-allowed disabled:opacity-70",
-        selected
-          ? "border-transparent bg-token-list-hover-background"
-          : "border-token-border bg-token-main-surface-primary hover:bg-token-list-hover-background",
-      )}
-      onClick={onSelect}
-    >
-      <Icon className="size-5 shrink-0 text-token-icon-foreground" />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="min-w-0 truncate text-sm text-token-text-primary">{title}</span>
-        <span className="min-w-0 truncate text-sm text-token-text-secondary">{description}</span>
-      </div>
-      <span
-        aria-hidden="true"
-        className={clsx(
-          "flex size-[17px] shrink-0 items-center justify-center rounded-full",
-          selected
-            ? "border-2 border-token-charts-blue bg-token-charts-blue"
-            : "border border-token-description-foreground/40",
-        )}
-      >
-        <span
-          className={clsx(
-            "size-[7px] rounded-full bg-[color:var(--gray-0)]",
-            selected ? "opacity-100" : "opacity-0",
-          )}
-        />
-      </span>
-    </button>
-  );
-}
-
 function LabeledOption({
   icon,
   label,
@@ -568,30 +578,17 @@ function SegmentedToggle<T extends string>({
   );
 }
 
-function getLocaleLabel(locale: string, displayLocale: string) {
-  try {
-    return (
-      new Intl.DisplayNames([displayLocale], {
-        type: "language",
-        languageDisplay: "standard",
-      }).of(locale) ?? locale
-    );
-  } catch {
-    return locale;
-  }
-}
-
 function isMacPlatform(platform: string) {
   return platform === "darwin" || platform === "macOS";
 }
 
-function getModifierSymbol(platform: string) {
-  return isMacPlatform(platform) ? "⌘" : "Ctrl";
+function getModifierLabel(platform: string) {
+  return isMacPlatform(platform) ? "Cmd" : "Ctrl";
 }
 
 function getShortcutLabel(platform: string, shortcut: "send" | "invert-follow-up") {
   if (isMacPlatform(platform)) {
-    return shortcut === "send" ? "⌘+Enter" : "⌘+Shift+Enter";
+    return shortcut === "send" ? "Cmd+Enter" : "Cmd+Shift+Enter";
   }
 
   return shortcut === "send" ? "Ctrl+Enter" : "Ctrl+Shift+Enter";
@@ -607,22 +604,111 @@ function getInvertFollowUpShortcutLabel(
   );
 }
 
-function openExternalIfAvailable(url: string) {
-  void window.desktopApi?.openExternal(url);
+function getLocaleLabel(locale: string, displayLocale: string) {
+  try {
+    return (
+      new Intl.DisplayNames([displayLocale], {
+        type: "language",
+        languageDisplay: "standard",
+      }).of(locale) ?? locale
+    );
+  } catch {
+    return locale;
+  }
 }
 
-function ElevatedRiskLink({ children }: { children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      className="inline-flex text-token-text-link-foreground"
-      onClick={() => {
-        openExternalIfAvailable("https://developers.openai.com/codex/config-basic");
-      }}
-    >
-      {children}
-    </button>
-  );
+function normalizeHotkeyKey(event: HotkeyEventLike) {
+  if (/^Key[A-Z]$/.test(event.code)) {
+    return event.code.slice(3);
+  }
+
+  if (/^Digit[0-9]$/.test(event.code)) {
+    return event.code.slice(5);
+  }
+
+  if (/^Numpad[0-9]$/.test(event.code)) {
+    return event.code.slice(6);
+  }
+
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(event.key)) {
+    return event.key.toUpperCase();
+  }
+
+  if (event.code in hotkeyCodeMap) {
+    return hotkeyCodeMap[event.code];
+  }
+
+  switch (event.key) {
+    case " ":
+      return "Space";
+    case "ArrowDown":
+      return "Down";
+    case "ArrowLeft":
+      return "Left";
+    case "ArrowRight":
+      return "Right";
+    case "ArrowUp":
+      return "Up";
+    case "Backspace":
+      return "Backspace";
+    case "Delete":
+      return "Delete";
+    case "End":
+      return "End";
+    case "Enter":
+      return "Enter";
+    case "Home":
+      return "Home";
+    case "Insert":
+      return "Insert";
+    case "PageDown":
+      return "PageDown";
+    case "PageUp":
+      return "PageUp";
+    case "Tab":
+      return "Tab";
+    default:
+      return null;
+  }
+}
+
+function formatHotkeyLabel(hotkey: string | null) {
+  if (!hotkey) {
+    return "Off";
+  }
+
+  return hotkey
+    .split("+")
+    .map((part) => hotkeyDisplayMap[part] ?? part)
+    .join("+");
+}
+
+function acceleratorFromKeyboardEvent(event: HotkeyEventLike) {
+  const key = normalizeHotkeyKey(event);
+  if (!key) {
+    return null;
+  }
+
+  const modifiers: string[] = [];
+
+  if (event.metaKey) {
+    modifiers.push("Command");
+  }
+  if (event.ctrlKey) {
+    modifiers.push("Control");
+  }
+  if (event.altKey) {
+    modifiers.push("Alt");
+  }
+  if (event.shiftKey) {
+    modifiers.push("Shift");
+  }
+
+  if (modifiers.length === 0 && !/^F([1-9]|1[0-9]|2[0-4])$/.test(key)) {
+    return null;
+  }
+
+  return [...modifiers, key].join("+");
 }
 
 function DefaultOpenDestinationSelect({
@@ -644,7 +730,7 @@ function DefaultOpenDestinationSelect({
       align="end"
       contentClassName="w-[220px]"
       trigger={
-        <MenuTrigger className="menuFixed" onClick={() => setOpen((current) => !current)}>
+        <MenuTrigger onClick={() => setOpen((current) => !current)}>
           <LabeledOption
             icon={<img alt="" src={option.icon} className="icon-sm" />}
             label={option.label}
@@ -677,15 +763,16 @@ function AgentEnvironmentSelect({
   onChange: (value: AgentEnvironment) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const options = useMemo<Option<AgentEnvironment>[]>(() => agentEnvironmentOptions, []);
-  const selected = options.find((option) => option.value === value) ?? options[0];
-  const initial = options.find((option) => option.value === initialValue) ?? selected;
-  const showRestartNotice = initialValue !== value;
+  const selected =
+    agentEnvironmentOptions.find((option) => option.value === value) ??
+    agentEnvironmentOptions[0];
+  const initial =
+    agentEnvironmentOptions.find((option) => option.value === initialValue) ?? selected;
 
   return (
-    <>
-      {showRestartNotice ? (
-        <div className="text-token-error-foreground text-xs">
+    <div className="flex w-[320px] max-w-full flex-col items-end gap-2 max-sm:w-full max-sm:items-stretch">
+      {initialValue !== value ? (
+        <div className="text-right text-xs text-token-error-foreground max-sm:text-left">
           Restart Codex to apply this change. The agent is still running in {initial.label}.
         </div>
       ) : null}
@@ -700,7 +787,7 @@ function AgentEnvironmentSelect({
           </MenuTrigger>
         }
       >
-        {options.map((option) => (
+        {agentEnvironmentOptions.map((option) => (
           <DropdownItem
             key={option.value}
             selected={option.value === value}
@@ -716,7 +803,7 @@ function AgentEnvironmentSelect({
           </DropdownItem>
         ))}
       </DropdownMenu>
-    </>
+    </div>
   );
 }
 
@@ -728,11 +815,9 @@ function IntegratedTerminalShellSelect({
   onChange: (value: GeneralSettingsModel["integratedTerminalShell"]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const options = useMemo<Option<GeneralSettingsModel["integratedTerminalShell"]>[]>(
-    () => integratedTerminalShellOptions,
-    [],
-  );
-  const selected = options.find((option) => option.value === value) ?? options[0];
+  const selected =
+    integratedTerminalShellOptions.find((option) => option.value === value) ??
+    integratedTerminalShellOptions[0];
 
   return (
     <DropdownMenu
@@ -746,7 +831,7 @@ function IntegratedTerminalShellSelect({
         </MenuTrigger>
       }
     >
-      {options.map((option) => (
+      {integratedTerminalShellOptions.map((option) => (
         <DropdownItem
           key={option.value}
           selected={option.value === value}
@@ -821,8 +906,8 @@ function LanguageSelect({
       <div className="pb-1">
         <SearchField
           value={query}
-          placeholder="Search languages"
           onChange={setQuery}
+          placeholder="Search languages"
         />
       </div>
       <DropdownItem
@@ -938,113 +1023,165 @@ function NotificationTurnModeSelect({
   );
 }
 
+function WindowHotkeyControl({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (value: string | null) => Promise<void>;
+}) {
+  const [supported, setSupported] = useState(true);
+  const [hotkey, setHotkey] = useState<string | null>(value);
+  const [capturing, setCapturing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const captureInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setHotkey(value);
+  }, [value]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const nextState = await window.desktopApi?.getWindowHotkeyState();
+        if (!nextState || cancelled) {
+          return;
+        }
+
+        setSupported(nextState.supported);
+        setHotkey(nextState.hotkey);
+      } catch {
+        if (!cancelled) {
+          setSupported(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (capturing) {
+      captureInputRef.current?.focus();
+      captureInputRef.current?.select();
+    }
+  }, [capturing]);
+
+  const syncHotkey = async (nextHotkey: string | null) => {
+    setErrorText(null);
+    setBusy(true);
+
+    try {
+      const state = nextHotkey
+        ? await window.desktopApi?.setWindowHotkey(nextHotkey)
+        : await window.desktopApi?.clearWindowHotkey();
+
+      const resolvedHotkey = state?.hotkey ?? null;
+      setSupported(state?.supported ?? true);
+      setHotkey(resolvedHotkey);
+      await onChange(resolvedHotkey);
+      setCapturing(false);
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : "Unable to set shortcut");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCaptureKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === "Escape") {
+      setCapturing(false);
+      setErrorText(null);
+      return;
+    }
+
+    const accelerator = acceleratorFromKeyboardEvent(event);
+    if (!accelerator) {
+      return;
+    }
+
+    void syncHotkey(accelerator);
+  };
+
+  return (
+    <div className="flex w-[320px] max-w-full flex-col items-end gap-2 max-sm:w-full max-sm:items-stretch">
+      <div className="flex items-center justify-end gap-2 max-sm:flex-wrap max-sm:justify-stretch">
+        {capturing ? (
+          <input
+            ref={captureInputRef}
+            readOnly
+            value="Press shortcut"
+            className="h-8 w-[148px] rounded-lg border border-token-border bg-token-input-background px-2.5 text-sm text-token-text-primary shadow-sm outline-none"
+            onKeyDown={handleCaptureKeyDown}
+          />
+        ) : (
+          <div className="min-w-[96px] text-right text-sm text-token-text-secondary max-sm:min-w-0 max-sm:flex-1 max-sm:text-left">
+            {supported ? formatHotkeyLabel(hotkey) : "Unavailable"}
+          </div>
+        )}
+        {capturing ? (
+          <SettingsActionButton disabled={busy} onClick={() => setCapturing(false)}>
+            Cancel
+          </SettingsActionButton>
+        ) : (
+          <>
+            <SettingsActionButton
+              disabled={!supported || busy}
+              onClick={() => {
+                setCapturing(true);
+                setErrorText(null);
+              }}
+            >
+              {hotkey ? "Change" : "Set"}
+            </SettingsActionButton>
+            {hotkey ? (
+              <SettingsActionButton
+                disabled={!supported || busy}
+                onClick={() => {
+                  void syncHotkey(null);
+                }}
+              >
+                Clear
+              </SettingsActionButton>
+            ) : null}
+          </>
+        )}
+      </div>
+      {errorText ? (
+        <div className="text-right text-xs text-token-error-foreground max-sm:text-left">
+          {errorText}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function GeneralSection() {
   const general = useAppStore((state) => state.settings.general);
   const agent = useAppStore((state) => state.settings.agent);
   const platform = useAppStore((state) => state.bootstrap.platform);
   const updateSettings = useAppStore((state) => state.updateSettings);
   const isWindows = platform === "win32" || platform === "windows";
-  const modifierSymbol = getModifierSymbol(platform);
+  const modifierLabel = getModifierLabel(platform);
   const invertFollowUpShortcutLabel = getInvertFollowUpShortcutLabel(
     platform,
     general.composerEnterBehavior,
   );
   const initialAgentEnvironmentRef = useRef(agent.agentEnvironment);
-  const showAgentEnvironment = isWindows;
-  const showIntegratedTerminalShell = isWindows;
-  const showPreventSleepWhileRunning = !isWindows;
 
   return (
     <SettingsContentLayout title="General">
-      <SettingsGroup className="gap-4">
-        <SettingsGroupHeader
-          title="Work mode"
-          subtitle="Choose how much technical detail Codex shows"
-        />
-        <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1" role="radiogroup" aria-label="Work mode">
-          <WorkModeCard
-            selected={general.workMode === "coding"}
-            title="For coding"
-            description="More technical responses and control"
-            icon={TerminalIcon}
-            onSelect={() => {
-              void updateSettings("general", { workMode: "coding" });
-            }}
-          />
-          <WorkModeCard
-            selected={general.workMode === "everyday"}
-            title="For everyday work"
-            description="Same power, less technical detail"
-            icon={EverydayChatIcon}
-            onSelect={() => {
-              void updateSettings("general", { workMode: "everyday" });
-            }}
-          />
-        </div>
-      </SettingsGroup>
-
       <SettingsGroup className="gap-2">
-        <SettingsGroupHeader title="Permissions" />
-        <SettingsGroupContent>
-          <SettingsSurface>
-            <SettingsRow
-              label="Default permissions"
-              description="By default, Codex can read and edit files in its workspace. It can ask for additional access when needed"
-              control={
-                <SettingsToggle
-                  checked
-                  disabled
-                  ariaLabel="Default permissions are always shown"
-                  onChange={() => undefined}
-                />
-              }
-            />
-            <SettingsRow
-              label="Auto-review"
-              description={
-                <>
-                  Codex can read and edit files in its workspace. Codex automatically reviews requests for additional access. Auto-review can make mistakes.{" "}
-                  <ElevatedRiskLink>Learn more</ElevatedRiskLink> about elevated risks.
-                </>
-              }
-              control={
-                <SettingsToggle
-                  checked={agent.showAutoReviewPermissions}
-                  ariaLabel="Show Auto-review in the composer"
-                  onChange={(checked) => {
-                    void updateSettings("agent", {
-                      showAutoReviewPermissions: checked,
-                    });
-                  }}
-                />
-              }
-            />
-            <SettingsRow
-              label="Full access"
-              description={
-                <>
-                  When Codex runs with full access, it can edit any file on your computer and run commands with network, without your approval. This significantly increases the risk of data loss, leaks, or unexpected behavior.{" "}
-                  <ElevatedRiskLink>Learn more</ElevatedRiskLink> about elevated risks.
-                </>
-              }
-              control={
-                <SettingsToggle
-                  checked={agent.showFullAccessPermissions}
-                  ariaLabel="Show Full access in the composer"
-                  onChange={(checked) => {
-                    void updateSettings("agent", {
-                      showFullAccessPermissions: checked,
-                    });
-                  }}
-                />
-              }
-            />
-          </SettingsSurface>
-        </SettingsGroupContent>
-      </SettingsGroup>
-
-      <SettingsGroup className="gap-2">
-        <SettingsGroupHeader title="General" />
         <SettingsGroupContent>
           <SettingsSurface>
             <SettingsRow
@@ -1052,7 +1189,7 @@ function GeneralSection() {
               description="Where files and folders open by default"
               control={<DefaultOpenDestinationSelect value={general.defaultOpenTarget} />}
             />
-            {showAgentEnvironment ? (
+            {isWindows ? (
               <SettingsRow
                 label="Agent environment"
                 description="Choose where the agent runs on Windows"
@@ -1067,7 +1204,7 @@ function GeneralSection() {
                 }
               />
             ) : null}
-            {showIntegratedTerminalShell ? (
+            {isWindows ? (
               <SettingsRow
                 label="Integrated terminal shell"
                 description="Choose which shell opens in the integrated terminal."
@@ -1075,9 +1212,7 @@ function GeneralSection() {
                   <IntegratedTerminalShellSelect
                     value={general.integratedTerminalShell}
                     onChange={(value) => {
-                      void updateSettings("general", {
-                        integratedTerminalShell: value,
-                      });
+                      void updateSettings("general", { integratedTerminalShell: value });
                     }}
                   />
                 }
@@ -1096,12 +1231,24 @@ function GeneralSection() {
               }
             />
             <SettingsRow
-              label={`Require ${modifierSymbol} + enter to send long prompts`}
-              description={`When enabled, multiline prompts require ${modifierSymbol} + enter to send.`}
+              label="Popout Window hotkey"
+              description="Set a global shortcut for Popout Window. Leave unset to keep it off."
+              control={
+                <WindowHotkeyControl
+                  value={general.popoutWindowHotkey}
+                  onChange={(nextHotkey) =>
+                    updateSettings("general", { popoutWindowHotkey: nextHotkey })
+                  }
+                />
+              }
+            />
+            <SettingsRow
+              label={`Require ${modifierLabel} + enter to send long prompts`}
+              description={`When enabled, multiline prompts require ${modifierLabel} + enter to send.`}
               control={
                 <SettingsToggle
                   checked={general.composerEnterBehavior === "cmdIfMultiline"}
-                  ariaLabel={`Require ${modifierSymbol} + enter to send long prompts`}
+                  ariaLabel={`Require ${modifierLabel} + enter to send long prompts`}
                   onChange={(checked) => {
                     void updateSettings("general", {
                       composerEnterBehavior: checked ? "cmdIfMultiline" : "enter",
@@ -1118,6 +1265,21 @@ function GeneralSection() {
                   value={agent.speed}
                   onChange={(value) => {
                     void updateSettings("agent", { speed: value });
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              label="Suggested prompts"
+              description="Suggest what to do next by searching project files and connected apps"
+              control={
+                <SettingsToggle
+                  checked={general.suggestedPromptsEnabled}
+                  ariaLabel="Enable ambient suggestions"
+                  onChange={(checked) => {
+                    void updateSettings("general", {
+                      suggestedPromptsEnabled: checked,
+                    });
                   }}
                 />
               }
@@ -1156,7 +1318,7 @@ function GeneralSection() {
                 />
               }
             />
-            {showPreventSleepWhileRunning ? (
+            {!isWindows ? (
               <SettingsRow
                 label="Prevent sleep while running"
                 description="Keep your computer awake while Codex is running a chat"
@@ -1230,156 +1392,74 @@ function GeneralSection() {
   );
 }
 
-function NotImplementedSection({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
+function NotYetSection({ title }: { title: string }) {
   return (
     <SettingsContentLayout title={title}>
-      <div className="settings-placeholder">
-        <strong>{title}</strong>
-        <p>{description}</p>
+      <div className="rounded-xl border border-token-border bg-token-input-background px-4 py-4 text-sm text-token-text-secondary shadow-sm">
+        This page is still being reconstructed from the original desktop bundles.
       </div>
     </SettingsContentLayout>
   );
 }
 
+function AccountSection() {
+  return <NotYetSection title="Account" />;
+}
+
 function AppearanceSection() {
-  return (
-    <NotImplementedSection
-      title="Appearance"
-      description="Appearance settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Appearance" />;
 }
 
 function ConfigurationSection() {
-  return (
-    <NotImplementedSection
-      title="Configuration"
-      description="Configuration settings are still being reconstructed from the original bundles."
-    />
-  );
-}
-
-function AccountSection() {
-  return (
-    <NotImplementedSection
-      title="Account"
-      description="Account settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Configuration" />;
 }
 
 function PersonalizationSection() {
-  return (
-    <NotImplementedSection
-      title="Personalization"
-      description="Personalization settings are still being reconstructed from the original bundles."
-    />
-  );
-}
-
-function McpServersSection() {
-  return (
-    <NotImplementedSection
-      title="MCP servers"
-      description="MCP settings are still being reconstructed from the original bundles."
-    />
-  );
-}
-
-function HooksSection() {
-  return (
-    <NotImplementedSection
-      title="Hooks"
-      description="Hooks settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Personalization" />;
 }
 
 function KeyboardShortcutsSection() {
-  return (
-    <NotImplementedSection
-      title="Keyboard shortcuts"
-      description="Keyboard shortcuts settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Keyboard shortcuts" />;
+}
+
+function McpServersSection() {
+  return <NotYetSection title="MCP servers" />;
+}
+
+function HooksSection() {
+  return <NotYetSection title="Hooks" />;
 }
 
 function GitSection() {
-  return (
-    <NotImplementedSection
-      title="Git"
-      description="Git settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Git" />;
 }
 
 function ConnectionsSection() {
-  return (
-    <NotImplementedSection
-      title="Connections"
-      description="Connection settings are still being reconstructed from the original bundles."
-    />
-  );
-}
-
-function UsageSection() {
-  return (
-    <NotImplementedSection
-      title="Usage"
-      description="Usage settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Connections" />;
 }
 
 function EnvironmentsSection() {
-  return (
-    <NotImplementedSection
-      title="Environments"
-      description="Environment settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Environments" />;
 }
 
 function WorktreesSection() {
-  return (
-    <NotImplementedSection
-      title="Worktrees"
-      description="Worktree settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Worktrees" />;
 }
 
 function BrowserSection() {
-  return (
-    <NotImplementedSection
-      title="Browser"
-      description="Browser settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Browser" />;
 }
 
 function ComputerUseSection() {
-  return (
-    <NotImplementedSection
-      title="Computer use"
-      description="Computer use settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Computer use" />;
+}
+
+function UsageSection() {
+  return <NotYetSection title="Usage" />;
 }
 
 function ArchivedChatsSection() {
-  return (
-    <NotImplementedSection
-      title="Archived chats"
-      description="Archived chat settings are still being reconstructed from the original bundles."
-    />
-  );
+  return <NotYetSection title="Archived chats" />;
 }
 
 export const settingsSections: SettingsSectionDefinition[] = [

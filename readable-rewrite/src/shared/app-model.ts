@@ -1,6 +1,7 @@
 export const APP_STATE_SCHEMA_VERSION = 1;
 
 export type ThemeMode = "system" | "light" | "dark";
+export type NotificationTurnMode = "off" | "unfocused" | "always";
 export type BrowserApprovalMode = "always-ask" | "always-allow";
 export type AnnotationScreenshotMode = "necessary" | "always";
 export type AgentApprovalPolicy =
@@ -34,6 +35,11 @@ export type DesktopBootstrapState = {
   platform: NodeJS.Platform | string;
   systemTheme: "light" | "dark";
   dataFilePath: string;
+};
+
+export type WindowHotkeyState = {
+  supported: boolean;
+  hotkey: string | null;
 };
 
 export type ChatThread = {
@@ -111,9 +117,14 @@ export type GeneralSettingsModel = {
     | "gitBash"
     | "wsl";
   localeOverride: string | null;
+  popoutWindowHotkey: string | null;
   composerEnterBehavior: "enter" | "cmdIfMultiline";
   followUpBehavior: "queue" | "steer";
   reviewDelivery: "inline" | "detached";
+  suggestedPromptsEnabled: boolean;
+  notificationsTurnMode: NotificationTurnMode;
+  notificationsPermissionsEnabled: boolean;
+  notificationsQuestionsEnabled: boolean;
   preventSleepWhileRunning: boolean;
 };
 

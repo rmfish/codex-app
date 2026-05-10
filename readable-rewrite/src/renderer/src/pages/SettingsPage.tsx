@@ -1,5 +1,5 @@
 import { Navigate, NavLink, useNavigate, useParams } from "react-router-dom";
-import { settingsSections } from "@/pages/settings/sections";
+import { settingsSections } from "@/pages/settings/sections-rewrite";
 import {
   AccountIcon,
   AgentNavIcon,
