@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+dist-electron/
+coverage/
+.vite/
+out/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# local preview / temp artifacts
+.preview*.png
+.dev-server.log
+.vite-*.log
+.vite-*.err.log
+.vite-*.out.log
+
+# extracted / generated reverse-engineering artifacts
+app.asar
+asar-analysis/
+asar-full/
+webview/

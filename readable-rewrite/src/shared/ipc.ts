@@ -1,0 +1,17 @@
+export const desktopChannels = {
+  bootstrapState: "desktop:get-bootstrap-state",
+  openExternal: "desktop:open-external",
+  themeChanged: "desktop:theme-changed",
+  getSnapshot: "desktop:data:get-snapshot",
+  createThread: "desktop:data:create-thread",
+  appendMessage: "desktop:data:append-message",
+  selectThread: "desktop:data:select-thread",
+  selectAutomation: "desktop:data:select-automation",
+  togglePluginConnection: "desktop:data:toggle-plugin-connection",
+  updateAutomation: "desktop:data:update-automation",
+  updateAutomationSchedule: "desktop:data:update-automation-schedule",
+  updateSettings: "desktop:data:update-settings",
+  addBrowserDomain: "desktop:data:add-browser-domain",
+  removeBrowserDomain: "desktop:data:remove-browser-domain",
+  showApplicationMenu: "desktop:show-application-menu",
+} as const;
