@@ -43,6 +43,7 @@ export function App() {
   const hydrate = useAppStore((state) => state.hydrate);
   const resolvedTheme = useAppStore(selectResolvedTheme);
   const platform = useAppStore((state) => state.bootstrap.platform);
+  const appearance = useAppStore((state) => state.settings.appearance);
 
   useEffect(() => {
     let active = true;
@@ -85,7 +86,24 @@ export function App() {
     root.classList.toggle("light", resolvedTheme === "light");
     root.classList.toggle("electron-dark", resolvedTheme === "dark");
     root.classList.toggle("electron-light", resolvedTheme === "light");
-  }, [platform, resolvedTheme]);
+
+    root.style.setProperty("--vscode-font-size", `${appearance.uiFontSize}px`);
+    root.style.setProperty("--vscode-chat-font-size", `${appearance.uiFontSize}px`);
+    root.style.setProperty("--vscode-editor-font-size", `${appearance.codeFontSize}px`);
+    root.style.setProperty("--vscode-chat-editor-font-size", `${appearance.codeFontSize}px`);
+    root.style.setProperty(
+      "--cursor-interaction",
+      appearance.usePointerCursors ? "pointer" : "default",
+    );
+
+    if (appearance.fontSmoothing) {
+      root.style.setProperty("-webkit-font-smoothing", "antialiased");
+      root.style.setProperty("-moz-osx-font-smoothing", "grayscale");
+    } else {
+      root.style.setProperty("-webkit-font-smoothing", "auto");
+      root.style.setProperty("-moz-osx-font-smoothing", "auto");
+    }
+  }, [appearance, platform, resolvedTheme]);
 
   return <RouterProvider router={router} />;
 }

@@ -1,14 +1,27 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   CheckIcon,
   ChevronDownIcon,
   EverydayChatIcon,
+  ExternalArrowIcon,
+  SearchIcon,
   TerminalIcon,
 } from "@/components/AppIcons";
 import { useAppStore } from "@/app/store";
 import type {
+  AgentApprovalPolicy,
   AgentEnvironment,
   AgentReasoningSpeed,
+  AgentSandboxMode,
+  AppearanceSettingsModel,
   GeneralSettingsModel,
 } from "@shared/app-model";
 
@@ -25,12 +38,20 @@ type Option<T extends string> = {
   description?: string;
 };
 
-const vscodeIconUrl = new URL(
-  "../../../../../../asar-full/webview/apps/vscode.png",
-  import.meta.url,
-).href;
+type HotkeyEventLike = {
+  altKey: boolean;
+  code: string;
+  ctrlKey: boolean;
+  key: string;
+  metaKey: boolean;
+  shiftKey: boolean;
+};
 
-const integratedTerminalShellOptions: Option<GeneralSettingsModel["integratedTerminalShell"]>[] = [
+const vscodeIconUrl = "/apps/vscode.png";
+
+const integratedTerminalShellOptions: Option<
+  GeneralSettingsModel["integratedTerminalShell"]
+>[] = [
   { value: "powershell", label: "PowerShell" },
   { value: "commandPrompt", label: "Command Prompt" },
   { value: "gitBash", label: "Git Bash" },
@@ -74,6 +95,56 @@ const notificationTurnModeOptions: Array<{
   { value: "off", label: "Never" },
   { value: "unfocused", label: "Only when unfocused" },
   { value: "always", label: "Always" },
+];
+
+const themeModeOptions: Array<{
+  value: AppearanceSettingsModel["themeMode"];
+  label: string;
+}> = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+];
+
+const approvalPolicyOptions: Option<AgentApprovalPolicy>[] = [
+  {
+    value: "untrusted",
+    label: "Untrusted",
+    description: "Always ask before taking action",
+  },
+  {
+    value: "on-failure",
+    label: "On failure",
+    description: "Ask only when a command fails",
+  },
+  {
+    value: "on-request",
+    label: "On request",
+    description: "Ask when escalation is requested",
+  },
+  {
+    value: "never",
+    label: "Never",
+    description: "Run without asking for approval",
+  },
+];
+
+const sandboxModeOptions: Option<AgentSandboxMode>[] = [
+  {
+    value: "read-only",
+    label: "Read only",
+    description: "Can read files, but cannot edit them",
+  },
+  {
+    value: "workspace-write",
+    label: "Workspace write",
+    description: "Can edit files, but only in this workspace",
+  },
+  {
+    value: "danger-full-access",
+    label: "Full access",
+    description: "Can edit files outside this workspace",
+  },
 ];
 
 const supportedLocales = [
@@ -143,15 +214,104 @@ const supportedLocales = [
   "zh-TW",
 ] as const;
 
+const hotkeyCodeMap: Record<string, string> = {
+  Backquote: "Backquote",
+  Backslash: "Backslash",
+  BracketLeft: "LeftBracket",
+  BracketRight: "RightBracket",
+  Comma: "Comma",
+  Equal: "Plus",
+  Minus: "Minus",
+  Period: "Period",
+  Quote: "Quote",
+  Semicolon: "Semicolon",
+  Slash: "Slash",
+};
+
+const hotkeyDisplayMap: Record<string, string> = {
+  Backquote: "`",
+  Backslash: "\\",
+  Command: "Cmd",
+  Comma: ",",
+  Control: "Ctrl",
+  Esc: "Esc",
+  LeftBracket: "[",
+  Period: ".",
+  Plus: "+",
+  Quote: "'",
+  RightBracket: "]",
+  Semicolon: ";",
+  Slash: "/",
+};
+
 function clsx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
 }
 
+function formatRelativeImportTime(value: string) {
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    return "recently";
+  }
+
+  const diffMs = Date.now() - timestamp;
+  const minuteMs = 60 * 1000;
+  const hourMs = 60 * minuteMs;
+  const dayMs = 24 * hourMs;
+
+  if (diffMs < hourMs) {
+    const minutes = Math.max(1, Math.floor(diffMs / minuteMs));
+    return `${minutes} min`;
+  }
+
+  if (diffMs < dayMs) {
+    const hours = Math.max(1, Math.floor(diffMs / hourMs));
+    return `${hours} hour${hours === 1 ? "" : "s"}`;
+  }
+
+  const days = Math.max(1, Math.floor(diffMs / dayMs));
+  return `${days} day${days === 1 ? "" : "s"}`;
+}
+
+type SettingsButtonColor = "ghost" | "primary" | "secondary";
+type SettingsButtonSize = "default" | "toolbar";
+type SettingsRowVariant = "default" | "nested";
+
+function getSettingsButtonClass({
+  className,
+  color = "secondary",
+  size = "toolbar",
+}: {
+  className?: string;
+  color?: SettingsButtonColor;
+  size?: SettingsButtonSize;
+}) {
+  const colorClass =
+    color === "ghost"
+      ? "text-token-text-tertiary enabled:hover:bg-token-list-hover-background data-[state=open]:bg-token-list-hover-background border-transparent"
+      : color === "primary"
+        ? "bg-token-foreground enabled:hover:bg-token-foreground/80 data-[state=open]:bg-token-foreground/80 text-token-dropdown-background border-transparent"
+        : "text-token-foreground bg-token-foreground/5 enabled:hover:bg-token-foreground/10 data-[state=open]:bg-token-foreground/10 border-transparent";
+  const sizeClass =
+    size === "default"
+      ? "rounded-full px-2 py-0.5 text-sm leading-[18px]"
+      : "h-token-button-composer rounded-lg px-2 py-0 text-base leading-[18px]";
+
+  return clsx(
+    "border-token-border user-select-none no-drag cursor-interaction flex items-center gap-1 border whitespace-nowrap focus:outline-none disabled:cursor-not-allowed disabled:opacity-40",
+    colorClass,
+    sizeClass,
+    className,
+  );
+}
+
 function SettingsContentLayout({
   title,
+  subtitle,
   children,
 }: {
   title: string;
+  subtitle?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -161,7 +321,10 @@ function SettingsContentLayout({
         <div className="mx-auto flex w-full max-w-2xl flex-col electron:min-w-[calc(320px*var(--codex-window-zoom))]">
           <div className="flex items-center justify-between gap-3 pb-panel">
             <div className="flex min-w-0 flex-1 flex-col gap-1.5 pb-panel">
-              <div className="heading-base electron:heading-lg truncate">{title}</div>
+              <div className="electron:heading-lg heading-base truncate">{title}</div>
+              {subtitle ? (
+                <div className="text-base text-token-text-secondary">{subtitle}</div>
+              ) : null}
             </div>
           </div>
           <div className="flex flex-col gap-[var(--padding-panel)]">{children}</div>
@@ -184,21 +347,26 @@ function SettingsGroup({
 function SettingsGroupHeader({
   title,
   subtitle,
+  actions,
+  className,
 }: {
   title?: ReactNode;
   subtitle?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
 }) {
-  if (!title && !subtitle) {
+  if (!title && !subtitle && !actions) {
     return null;
   }
 
   return (
     <div
-      className={
+      className={clsx(
         subtitle
           ? "flex items-start justify-between gap-2 px-0 pt-[calc((var(--height-toolbar)-1.5rem)/2)]"
-          : "flex h-toolbar items-center justify-between gap-2 px-0 py-0"
-      }
+          : "flex h-toolbar items-center justify-between gap-2 px-0 py-0",
+        className,
+      )}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {title ? (
@@ -208,6 +376,7 @@ function SettingsGroupHeader({
           <div className="text-base font-normal text-token-text-tertiary">{subtitle}</div>
         ) : null}
       </div>
+      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -246,29 +415,45 @@ function SettingsRow({
   label,
   description,
   control,
+  icon,
+  id,
+  variant = "default",
   className,
 }: {
   label: ReactNode;
   description?: ReactNode;
   control: ReactNode;
+  icon?: ReactNode;
+  id?: string;
+  variant?: SettingsRowVariant;
   className?: string;
 }) {
+  const rowClass =
+    variant === "nested"
+      ? "flex min-h-10 items-center justify-between gap-3 px-4 py-0.5 max-sm:min-h-0 max-sm:flex-col max-sm:items-stretch"
+      : "flex items-center justify-between gap-4 p-3";
+  const descriptionClass =
+    variant === "nested"
+      ? "min-w-0 text-xs text-token-text-secondary"
+      : "min-w-0 text-sm text-token-text-secondary";
+  const controlClass =
+    variant === "nested"
+      ? "flex min-w-0 flex-1 items-center justify-end max-sm:justify-stretch"
+      : "flex shrink-0 items-center gap-2";
+
   return (
     <div
-      className={clsx(
-        "flex min-h-10 items-center justify-between gap-3 px-4 py-0.5 max-sm:min-h-0 max-sm:flex-col max-sm:items-stretch",
-        className,
-      )}
+      id={id}
+      className={clsx(rowClass, className)}
     >
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="min-w-0 text-sm text-token-text-primary">{label}</div>
-        {description ? (
-          <div className="text-token-text-secondary min-w-0 text-xs">{description}</div>
-        ) : null}
+      <div className="flex min-w-0 items-center gap-3">
+        {icon ? <span className="shrink-0">{icon}</span> : null}
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="min-w-0 text-sm text-token-text-primary">{label}</div>
+          {description ? <div className={descriptionClass}>{description}</div> : null}
+        </div>
       </div>
-      <div className="flex min-w-0 flex-1 items-center justify-end max-sm:justify-stretch">
-        {control}
-      </div>
+      <div className={controlClass}>{control}</div>
     </div>
   );
 }
@@ -313,8 +498,7 @@ function SettingsToggle({
       >
         <span
           className={clsx(
-            "h-4 w-4 rounded-full border border-[color:var(--gray-0)] bg-[color:var(--gray-0)] shadow-sm transition-transform duration-200 ease-out",
-            checked ? "translate-x-[14px]" : "translate-x-[2px]",
+            "h-4 w-4 rounded-full border border-[color:var(--gray-0)] bg-[color:var(--gray-0)] shadow-sm transition-transform duration-200 ease-out data-[state=unchecked]:translate-x-[2px] data-[state=checked]:translate-x-[14px]",
           )}
           data-state={state}
         />
@@ -323,36 +507,75 @@ function SettingsToggle({
   );
 }
 
-function MenuTrigger({
+function SettingsActionButton({
   children,
   disabled = false,
+  color = "secondary",
   className,
+  loading = false,
+  onMouseDown,
   onClick,
 }: {
   children: ReactNode;
   disabled?: boolean;
+  color?: SettingsButtonColor;
   className?: string;
+  loading?: boolean;
+  onMouseDown?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       disabled={disabled}
-      className={clsx(
-        "h-8 w-[240px] justify-between rounded-lg border border-token-border bg-token-bg-primary px-2.5 py-0 shadow-sm max-sm:w-full",
-        "inline-flex items-center gap-0.5 text-sm text-token-text-primary",
-        disabled ? "cursor-not-allowed opacity-60" : "cursor-interaction",
-        className,
-      )}
+      className={getSettingsButtonClass({ className, color, size: "toolbar" })}
+      onMouseDown={onMouseDown}
       onClick={onClick}
     >
-      <span className="flex min-w-0 flex-1 items-center gap-1.5">{children}</span>
+      {loading ? "Loading" : children}
+    </button>
+  );
+}
+
+function MenuTrigger({
+  children,
+  disabled = false,
+  open = false,
+  className,
+  contentClassName,
+  onClick,
+}: {
+  children: ReactNode;
+  disabled?: boolean;
+  open?: boolean;
+  className?: string;
+  contentClassName?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      data-state={open ? "open" : "closed"}
+      className={getSettingsButtonClass({
+        className: clsx(
+          "w-[240px] justify-between",
+          className,
+        ),
+        color: "secondary",
+        size: "toolbar",
+      })}
+      onClick={onClick}
+    >
+      <span className={clsx("flex min-w-0 flex-1 items-center gap-1.5", contentClassName)}>
+        {children}
+      </span>
       <ChevronDownIcon className="icon-2xs shrink-0 text-token-input-placeholder-foreground" />
     </button>
   );
 }
 
-function DropdownMenu<T extends string>({
+function DropdownMenu({
   align = "end",
   children,
   contentClassName,
@@ -398,14 +621,14 @@ function DropdownMenu<T extends string>({
   }, [disabled, onOpenChange, open]);
 
   return (
-    <div className="settings-dropdown" ref={rootRef}>
+    <div className="relative" ref={rootRef}>
       {trigger}
       {open && !disabled ? (
         <div
           role="menu"
           className={clsx(
-            "settings-dropdown__menu",
-            align === "end" ? "settings-dropdown__menu--end" : "settings-dropdown__menu--start",
+            "no-drag bg-token-dropdown-background/90 text-token-foreground ring-token-border absolute top-[calc(100%+1px)] z-50 m-px flex max-h-[calc(100vh-16px)] min-w-[220px] select-none flex-col overflow-y-auto rounded-xl px-1 py-1 shadow-xl-spread ring-[0.5px] backdrop-blur-sm",
+            align === "end" ? "right-0" : "left-0",
             contentClassName,
           )}
         >
@@ -432,14 +655,19 @@ function DropdownItem({
       type="button"
       disabled={disabled}
       className={clsx(
-        "settings-dropdown__item",
-        selected && "settings-dropdown__item--selected",
-        disabled && "settings-dropdown__item--disabled",
+        "no-drag text-token-foreground outline-hidden rounded-lg px-[var(--padding-row-x)] py-[var(--padding-row-y)] text-sm",
+        disabled
+          ? "cursor-default opacity-50"
+          : "group cursor-interaction hover:bg-token-list-hover-background focus:bg-token-list-hover-background",
       )}
       onClick={onSelect}
     >
-      <span className="min-w-0 flex-1">{children}</span>
-      {selected ? <CheckIcon className="icon-xs shrink-0" /> : null}
+      <div className="flex w-full items-center gap-1.5">
+        <span className="min-w-0 flex-1">{children}</span>
+        {selected ? (
+          <CheckIcon className="icon-xs shrink-0 opacity-75 group-hover:opacity-100 group-focus:opacity-100" />
+        ) : null}
+      </div>
     </button>
   );
 }
@@ -523,14 +751,17 @@ function SearchField({
   onChange: (value: string) => void;
 }) {
   return (
-    <input
-      type="text"
-      value={value}
-      placeholder={placeholder}
-      spellCheck={false}
-      className="h-8 w-full rounded-lg border border-token-border bg-token-input-background px-2.5 text-sm text-token-text-primary shadow-sm outline-none placeholder:text-token-input-placeholder-foreground"
-      onChange={(event) => onChange(event.target.value)}
-    />
+    <div className="flex w-full items-center gap-1.5 px-[var(--padding-row-x)] py-[var(--padding-row-y)]">
+      <SearchIcon className="icon-2xs shrink-0 text-token-text-tertiary" />
+      <input
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        spellCheck={false}
+        className="!w-auto flex-1 appearance-none !rounded-none !border-none bg-transparent !px-0 !py-0 text-sm text-token-foreground outline-none placeholder:text-token-input-placeholder-foreground"
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </div>
   );
 }
 
@@ -544,28 +775,80 @@ function SegmentedToggle<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="inline-flex h-8 items-center rounded-lg border border-token-border bg-token-bg-primary p-0.5 shadow-sm max-sm:w-full">
+    <div className="inline-flex items-center gap-0.5" role="group">
       {options.map((option) => {
         const isSelected = option.value === value;
 
         return (
-          <button
+          <SettingsActionButton
             key={option.value}
-            type="button"
-            className={clsx(
-              "h-7 rounded-md px-3 text-sm transition-colors max-sm:flex-1",
-              isSelected
-                ? "bg-token-list-hover-background text-token-text-primary"
-                : "text-token-text-secondary hover:text-token-text-primary",
-            )}
+            aria-pressed={isSelected}
+            color={isSelected ? "secondary" : "ghost"}
+            className={getSettingsButtonClass({
+              color: isSelected ? "secondary" : "ghost",
+              size: "default",
+            })}
             onClick={() => onChange(option.value)}
           >
             {option.label}
-          </button>
+          </SettingsActionButton>
         );
       })}
     </div>
   );
+}
+
+function SettingsNumberInput({
+  ariaLabel,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  ariaLabel: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  const commit = (raw: string) => {
+    const parsed = Number.parseFloat(raw);
+    if (Number.isNaN(parsed)) {
+      return;
+    }
+
+    const clamped = Math.min(max, Math.max(min, parsed));
+    onChange(clamped);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        key={`${ariaLabel}:${value}`}
+        type="number"
+        min={min}
+        max={max}
+        step={1}
+        defaultValue={value}
+        aria-label={ariaLabel}
+        className="focus-visible:ring-token-focus h-token-button-composer w-16 rounded-lg border border-token-border bg-token-input-background px-2 py-0 text-right text-sm text-token-text-primary shadow-sm outline-none focus-visible:ring-2"
+        onBlur={(event) => {
+          commit(event.currentTarget.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commit(event.currentTarget.value);
+          }
+        }}
+      />
+      <span className="text-sm text-token-text-secondary">px</span>
+    </div>
+  );
+}
+
+function StatusText({ children }: { children: ReactNode }) {
+  return <span className="text-sm text-token-text-secondary">{children}</span>;
 }
 
 function getLocaleLabel(locale: string, displayLocale: string) {
@@ -585,13 +868,17 @@ function isMacPlatform(platform: string) {
   return platform === "darwin" || platform === "macOS";
 }
 
-function getModifierSymbol(platform: string) {
-  return isMacPlatform(platform) ? "⌘" : "Ctrl";
+function isWindowsPlatform(platform: string) {
+  return platform === "win32" || platform === "windows";
+}
+
+function getModifierLabel(platform: string) {
+  return isMacPlatform(platform) ? "Cmd" : "Ctrl";
 }
 
 function getShortcutLabel(platform: string, shortcut: "send" | "invert-follow-up") {
   if (isMacPlatform(platform)) {
-    return shortcut === "send" ? "⌘+Enter" : "⌘+Shift+Enter";
+    return shortcut === "send" ? "Cmd+Enter" : "Cmd+Shift+Enter";
   }
 
   return shortcut === "send" ? "Ctrl+Enter" : "Ctrl+Shift+Enter";
@@ -607,8 +894,120 @@ function getInvertFollowUpShortcutLabel(
   );
 }
 
+function normalizeHotkeyKey(event: HotkeyEventLike) {
+  if (/^Key[A-Z]$/.test(event.code)) {
+    return event.code.slice(3);
+  }
+
+  if (/^Digit[0-9]$/.test(event.code)) {
+    return event.code.slice(5);
+  }
+
+  if (/^Numpad[0-9]$/.test(event.code)) {
+    return event.code.slice(6);
+  }
+
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(event.key)) {
+    return event.key.toUpperCase();
+  }
+
+  if (event.code in hotkeyCodeMap) {
+    return hotkeyCodeMap[event.code];
+  }
+
+  switch (event.key) {
+    case " ":
+      return "Space";
+    case "ArrowDown":
+      return "Down";
+    case "ArrowLeft":
+      return "Left";
+    case "ArrowRight":
+      return "Right";
+    case "ArrowUp":
+      return "Up";
+    case "Backspace":
+      return "Backspace";
+    case "Delete":
+      return "Delete";
+    case "End":
+      return "End";
+    case "Enter":
+      return "Enter";
+    case "Home":
+      return "Home";
+    case "Insert":
+      return "Insert";
+    case "PageDown":
+      return "PageDown";
+    case "PageUp":
+      return "PageUp";
+    case "Tab":
+      return "Tab";
+    default:
+      return null;
+  }
+}
+
+function formatHotkeyLabel(hotkey: string | null) {
+  if (!hotkey) {
+    return "Off";
+  }
+
+  return hotkey
+    .split("+")
+    .map((part) => hotkeyDisplayMap[part] ?? part)
+    .join("+");
+}
+
+function acceleratorFromKeyboardEvent(event: HotkeyEventLike) {
+  const key = normalizeHotkeyKey(event);
+  if (!key) {
+    return null;
+  }
+
+  const modifiers: string[] = [];
+
+  if (event.metaKey) {
+    modifiers.push("Command");
+  }
+  if (event.ctrlKey) {
+    modifiers.push("Control");
+  }
+  if (event.altKey) {
+    modifiers.push("Alt");
+  }
+  if (event.shiftKey) {
+    modifiers.push("Shift");
+  }
+
+  if (modifiers.length === 0 && !/^F([1-9]|1[0-9]|2[0-4])$/.test(key)) {
+    return null;
+  }
+
+  return [...modifiers, key].join("+");
+}
+
 function openExternalIfAvailable(url: string) {
   void window.desktopApi?.openExternal(url);
+}
+
+function pathToFileUrl(path: string) {
+  const normalized = path.replace(/\\/g, "/");
+  const href = normalized.startsWith("/") ? `file://${normalized}` : `file:///${normalized}`;
+  return encodeURI(href);
+}
+
+function openLocalPathIfAvailable(path: string) {
+  if (!path) {
+    return;
+  }
+
+  openExternalIfAvailable(pathToFileUrl(path));
+}
+
+function preventMouseDownFocusLoss(event: ReactMouseEvent<HTMLElement>) {
+  event.preventDefault();
 }
 
 function ElevatedRiskLink({ children }: { children: ReactNode }) {
@@ -625,6 +1024,58 @@ function ElevatedRiskLink({ children }: { children: ReactNode }) {
   );
 }
 
+function ExternalAgentImportRow() {
+  const general = useAppStore((state) => state.settings.general);
+  const hasImportedAtLeastOnce = general.externalAgentImportLastImportedAt != null;
+  const hasAvailableImport =
+    general.externalAgentImportState === "ready" ||
+    general.externalAgentImportState === "remaining" ||
+    general.externalAgentImportState === "imported";
+  const isChecking = general.externalAgentImportState === "checking";
+  const isRemainingOnly = general.externalAgentImportState === "remaining";
+
+  if (!isChecking && !hasAvailableImport && !hasImportedAtLeastOnce) {
+    return null;
+  }
+
+  const label = hasImportedAtLeastOnce
+    ? "Imported agent setup"
+    : "Import work from other AI apps";
+  const description = general.externalAgentImportLastImportedAt
+    ? `Last imported ${formatRelativeImportTime(general.externalAgentImportLastImportedAt)} ago`
+    : "Bring over your setup, projects, and recent chats";
+
+  let actionLabel = "Import";
+  if (isChecking) {
+    actionLabel = "Checking";
+  } else if (hasAvailableImport) {
+    if (isRemainingOnly) {
+      actionLabel = "Continue with Codex";
+    } else if (hasImportedAtLeastOnce) {
+      actionLabel = "Import again";
+    }
+  } else if (hasImportedAtLeastOnce) {
+    actionLabel = "View imported files";
+  }
+
+  return (
+    <SettingsRow
+      id="external-agent-config-import-settings"
+      label={label}
+      description={description}
+      control={
+        <SettingsActionButton
+          color="secondary"
+          disabled
+          onClick={() => undefined}
+        >
+          {actionLabel}
+        </SettingsActionButton>
+      }
+    />
+  );
+}
+
 function DefaultOpenDestinationSelect({
   value,
 }: {
@@ -634,7 +1085,7 @@ function DefaultOpenDestinationSelect({
   const option = {
     value,
     label: value === "vscode" ? "VS Code" : value,
-    icon: vscodeIconUrl,
+    icon: value === "vscode" ? vscodeIconUrl : null,
   };
 
   return (
@@ -644,9 +1095,14 @@ function DefaultOpenDestinationSelect({
       align="end"
       contentClassName="w-[220px]"
       trigger={
-        <MenuTrigger className="menuFixed" onClick={() => setOpen((current) => !current)}>
+        <MenuTrigger
+          open={open}
+          className="px-2.5"
+          contentClassName="gap-1.5"
+          onClick={() => setOpen((current) => !current)}
+        >
           <LabeledOption
-            icon={<img alt="" src={option.icon} className="icon-sm" />}
+            icon={option.icon ? <img alt="" src={option.icon} className="icon-sm" /> : undefined}
             label={option.label}
           />
         </MenuTrigger>
@@ -659,7 +1115,7 @@ function DefaultOpenDestinationSelect({
         }}
       >
         <LabeledOption
-          icon={<img alt="" src={option.icon} className="icon-sm" />}
+          icon={option.icon ? <img alt="" src={option.icon} className="icon-sm" /> : undefined}
           label={option.label}
         />
       </DropdownItem>
@@ -677,15 +1133,16 @@ function AgentEnvironmentSelect({
   onChange: (value: AgentEnvironment) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const options = useMemo<Option<AgentEnvironment>[]>(() => agentEnvironmentOptions, []);
-  const selected = options.find((option) => option.value === value) ?? options[0];
-  const initial = options.find((option) => option.value === initialValue) ?? selected;
-  const showRestartNotice = initialValue !== value;
+  const selected =
+    agentEnvironmentOptions.find((option) => option.value === value) ??
+    agentEnvironmentOptions[0];
+  const initial =
+    agentEnvironmentOptions.find((option) => option.value === initialValue) ?? selected;
 
   return (
-    <>
-      {showRestartNotice ? (
-        <div className="text-token-error-foreground text-xs">
+    <div className="flex w-auto max-w-full flex-col items-end gap-2 max-sm:w-full max-sm:items-stretch">
+      {initialValue !== value ? (
+        <div className="text-right text-xs text-token-error-foreground max-sm:text-left">
           Restart Codex to apply this change. The agent is still running in {initial.label}.
         </div>
       ) : null}
@@ -695,12 +1152,12 @@ function AgentEnvironmentSelect({
         align="end"
         contentClassName="w-[320px] max-w-xs space-y-1"
         trigger={
-          <MenuTrigger onClick={() => setOpen((current) => !current)}>
+          <MenuTrigger open={open} onClick={() => setOpen((current) => !current)}>
             <LabeledOption label={selected.label} />
           </MenuTrigger>
         }
       >
-        {options.map((option) => (
+        {agentEnvironmentOptions.map((option) => (
           <DropdownItem
             key={option.value}
             selected={option.value === value}
@@ -716,7 +1173,7 @@ function AgentEnvironmentSelect({
           </DropdownItem>
         ))}
       </DropdownMenu>
-    </>
+    </div>
   );
 }
 
@@ -728,25 +1185,23 @@ function IntegratedTerminalShellSelect({
   onChange: (value: GeneralSettingsModel["integratedTerminalShell"]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const options = useMemo<Option<GeneralSettingsModel["integratedTerminalShell"]>[]>(
-    () => integratedTerminalShellOptions,
-    [],
-  );
-  const selected = options.find((option) => option.value === value) ?? options[0];
+  const selected =
+    integratedTerminalShellOptions.find((option) => option.value === value) ??
+    integratedTerminalShellOptions[0];
 
   return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={setOpen}
-      align="end"
-      contentClassName="w-[220px] max-w-xs"
-      trigger={
-        <MenuTrigger onClick={() => setOpen((current) => !current)}>
-          <LabeledOption label={selected.label} />
-        </MenuTrigger>
-      }
-    >
-      {options.map((option) => (
+      <DropdownMenu
+        open={open}
+        onOpenChange={setOpen}
+        align="end"
+        contentClassName="w-[220px] max-w-xs"
+        trigger={
+          <MenuTrigger open={open} onClick={() => setOpen((current) => !current)}>
+            <LabeledOption label={selected.label} />
+          </MenuTrigger>
+        }
+      >
+      {integratedTerminalShellOptions.map((option) => (
         <DropdownItem
           key={option.value}
           selected={option.value === value}
@@ -811,9 +1266,9 @@ function LanguageSelect({
         }
       }}
       align="end"
-      contentClassName="w-[320px] max-w-xs"
+      contentClassName="w-[240px]"
       trigger={
-        <MenuTrigger onClick={() => setOpen((current) => !current)}>
+        <MenuTrigger open={open} onClick={() => setOpen((current) => !current)}>
           <LabeledOption label={selected?.label ?? "Auto Detect"} />
         </MenuTrigger>
       }
@@ -866,17 +1321,17 @@ function SpeedSelect({
   const selected = speedOptions.find((option) => option.value === value) ?? speedOptions[0];
 
   return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={setOpen}
-      align="end"
-      contentClassName="w-[320px] max-w-xs"
-      trigger={
-        <MenuTrigger onClick={() => setOpen((current) => !current)}>
-          <LabeledOption label={selected.label} />
-        </MenuTrigger>
-      }
-    >
+      <DropdownMenu
+        open={open}
+        onOpenChange={setOpen}
+        align="end"
+        contentClassName="w-[240px]"
+        trigger={
+          <MenuTrigger open={open} onClick={() => setOpen((current) => !current)}>
+            <LabeledOption label={selected.label} />
+          </MenuTrigger>
+        }
+      >
       {speedOptions.map((option) => (
         <DropdownItem
           key={option.value}
@@ -909,17 +1364,17 @@ function NotificationTurnModeSelect({
     notificationTurnModeOptions[1];
 
   return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={setOpen}
-      align="end"
-      contentClassName="w-[320px] max-w-xs"
-      trigger={
-        <MenuTrigger onClick={() => setOpen((current) => !current)}>
-          <LabeledOption label={selected.label} />
-        </MenuTrigger>
-      }
-    >
+      <DropdownMenu
+        open={open}
+        onOpenChange={setOpen}
+        align="end"
+        contentClassName="w-[240px]"
+        trigger={
+          <MenuTrigger open={open} onClick={() => setOpen((current) => !current)}>
+            <LabeledOption label={selected.label} />
+          </MenuTrigger>
+        }
+      >
       <div className="max-h-80 overflow-y-auto">
         {notificationTurnModeOptions.map((option) => (
           <DropdownItem
@@ -938,21 +1393,291 @@ function NotificationTurnModeSelect({
   );
 }
 
+function ApprovalPolicySelect({
+  value,
+  onChange,
+}: {
+  value: AgentApprovalPolicy;
+  onChange: (value: AgentApprovalPolicy) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected =
+    approvalPolicyOptions.find((option) => option.value === value) ?? approvalPolicyOptions[2];
+
+  return (
+      <DropdownMenu
+        open={open}
+        onOpenChange={setOpen}
+        align="end"
+        contentClassName="w-[320px] max-w-xs"
+        trigger={
+          <MenuTrigger open={open} onClick={() => setOpen((current) => !current)}>
+            <LabeledOption label={selected.label} />
+          </MenuTrigger>
+        }
+      >
+      {approvalPolicyOptions.map((option) => (
+        <DropdownItem
+          key={option.value}
+          selected={option.value === value}
+          onSelect={() => {
+            setOpen(false);
+            onChange(option.value);
+          }}
+        >
+          <div className="flex flex-col items-start gap-0.5">
+            <span className="text-sm">{option.label}</span>
+            <span className="text-xs text-token-text-secondary">{option.description}</span>
+          </div>
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
+  );
+}
+
+function SandboxModeSelect({
+  value,
+  onChange,
+}: {
+  value: AgentSandboxMode;
+  onChange: (value: AgentSandboxMode) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected =
+    sandboxModeOptions.find((option) => option.value === value) ?? sandboxModeOptions[0];
+
+  return (
+      <DropdownMenu
+        open={open}
+        onOpenChange={setOpen}
+        align="end"
+        contentClassName="w-[320px] max-w-xs"
+        trigger={
+          <MenuTrigger open={open} onClick={() => setOpen((current) => !current)}>
+            <LabeledOption label={selected.label} />
+          </MenuTrigger>
+        }
+      >
+      {sandboxModeOptions.map((option) => (
+        <DropdownItem
+          key={option.value}
+          selected={option.value === value}
+          onSelect={() => {
+            setOpen(false);
+            onChange(option.value);
+          }}
+        >
+          <div className="flex flex-col items-start gap-0.5">
+            <span className="text-sm">{option.label}</span>
+            <span className="text-xs text-token-text-secondary">{option.description}</span>
+          </div>
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
+  );
+}
+
+function PetSelect({
+  value,
+}: {
+  value: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+      <DropdownMenu
+        open={open}
+        onOpenChange={setOpen}
+        align="end"
+        contentClassName="w-[220px] max-w-xs"
+        trigger={
+          <MenuTrigger open={open} onClick={() => setOpen((current) => !current)}>
+            <LabeledOption label={value} />
+          </MenuTrigger>
+        }
+      >
+      <DropdownItem
+        selected
+        onSelect={() => {
+          setOpen(false);
+        }}
+      >
+        <span className="text-sm">{value}</span>
+      </DropdownItem>
+    </DropdownMenu>
+  );
+}
+
+function PopoutWindowHotkeyRow({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (value: string | null) => Promise<void>;
+}) {
+  const [supported, setSupported] = useState(true);
+  const [hotkey, setHotkey] = useState<string | null>(value);
+  const [capturing, setCapturing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHotkey(value);
+  }, [value]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const nextState = await window.desktopApi?.getWindowHotkeyState();
+        if (!nextState || cancelled) {
+          return;
+        }
+
+        setSupported(nextState.supported);
+        setHotkey(nextState.hotkey);
+      } catch {
+        if (!cancelled) {
+          setSupported(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const syncHotkey = async (nextHotkey: string | null) => {
+    setErrorText(null);
+    setBusy(true);
+
+    try {
+      const state = nextHotkey
+        ? await window.desktopApi?.setWindowHotkey(nextHotkey)
+        : await window.desktopApi?.clearWindowHotkey();
+
+      const resolvedHotkey = state?.hotkey ?? null;
+      setSupported(state?.supported ?? true);
+      setHotkey(resolvedHotkey);
+      await onChange(resolvedHotkey);
+      setCapturing(false);
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : "Unable to set shortcut");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCaptureKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.repeat) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === "Escape") {
+      setCapturing(false);
+      setErrorText(null);
+      return;
+    }
+
+    const accelerator = acceleratorFromKeyboardEvent(event);
+    if (!accelerator) {
+      return;
+    }
+
+    void syncHotkey(accelerator);
+  };
+
+  if (!supported) {
+    return null;
+  }
+
+  return (
+    <SettingsRow
+      label="Popout Window hotkey"
+      description={
+        <div className="flex flex-col gap-1">
+          <span>Set a global shortcut for Popout Window. Leave unset to keep it off.</span>
+          {errorText ? <span className="text-token-error-foreground">{errorText}</span> : null}
+        </div>
+      }
+      control={
+        capturing ? (
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus
+              readOnly
+              value="Press shortcut"
+              aria-label="Popout Window hotkey capture"
+              className="h-9 w-36 rounded-md border border-token-input-border bg-token-input-background px-2 text-sm text-token-input-foreground transition-colors outline-none focus:border-token-focus-border"
+              onBlur={() => {
+                setCapturing(false);
+              }}
+              onKeyDown={handleCaptureKeyDown}
+            />
+            <SettingsActionButton
+              color="ghost"
+              disabled={busy}
+              onMouseDown={preventMouseDownFocusLoss}
+              onClick={() => {
+                setCapturing(false);
+              }}
+            >
+              Cancel
+            </SettingsActionButton>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="min-w-20 text-right text-sm text-token-text-secondary">
+              {formatHotkeyLabel(hotkey)}
+            </span>
+            <SettingsActionButton
+              color="secondary"
+              disabled={busy}
+              onClick={() => {
+                setErrorText(null);
+                setCapturing(true);
+              }}
+            >
+              {hotkey ? "Change" : "Set"}
+            </SettingsActionButton>
+            {hotkey ? (
+              <SettingsActionButton
+                color="ghost"
+                disabled={busy}
+                onClick={() => {
+                  void syncHotkey(null);
+                }}
+              >
+                Clear
+              </SettingsActionButton>
+            ) : null}
+          </div>
+        )
+      }
+    />
+  );
+}
+
 function GeneralSection() {
   const general = useAppStore((state) => state.settings.general);
   const agent = useAppStore((state) => state.settings.agent);
   const platform = useAppStore((state) => state.bootstrap.platform);
   const updateSettings = useAppStore((state) => state.updateSettings);
-  const isWindows = platform === "win32" || platform === "windows";
-  const modifierSymbol = getModifierSymbol(platform);
+  const isWindows = isWindowsPlatform(platform);
+  const modifierLabel = getModifierLabel(platform);
   const invertFollowUpShortcutLabel = getInvertFollowUpShortcutLabel(
     platform,
     general.composerEnterBehavior,
   );
   const initialAgentEnvironmentRef = useRef(agent.agentEnvironment);
-  const showAgentEnvironment = isWindows;
-  const showIntegratedTerminalShell = isWindows;
-  const showPreventSleepWhileRunning = !isWindows;
+  const showGuardianOption = true;
 
   return (
     <SettingsContentLayout title="General">
@@ -994,31 +1719,33 @@ function GeneralSection() {
                 <SettingsToggle
                   checked
                   disabled
-                  ariaLabel="Default permissions are always shown"
+                  ariaLabel="Default permissions"
                   onChange={() => undefined}
                 />
               }
             />
-            <SettingsRow
-              label="Auto-review"
-              description={
-                <>
-                  Codex can read and edit files in its workspace. Codex automatically reviews requests for additional access. Auto-review can make mistakes.{" "}
-                  <ElevatedRiskLink>Learn more</ElevatedRiskLink> about elevated risks.
-                </>
-              }
-              control={
-                <SettingsToggle
-                  checked={agent.showAutoReviewPermissions}
-                  ariaLabel="Show Auto-review in the composer"
-                  onChange={(checked) => {
-                    void updateSettings("agent", {
-                      showAutoReviewPermissions: checked,
-                    });
-                  }}
-                />
-              }
-            />
+            {showGuardianOption ? (
+              <SettingsRow
+                label="Auto-review"
+                description={
+                  <>
+                    Codex can read and edit files in its workspace. Codex automatically reviews requests for additional access. Auto-review can make mistakes.{" "}
+                    <ElevatedRiskLink>Learn more</ElevatedRiskLink> about elevated risks.
+                  </>
+                }
+                control={
+                  <SettingsToggle
+                    checked={agent.showAutoReviewPermissions}
+                    ariaLabel="Auto-review"
+                    onChange={(checked) => {
+                      void updateSettings("agent", {
+                        showAutoReviewPermissions: checked,
+                      });
+                    }}
+                  />
+                }
+              />
+            ) : null}
             <SettingsRow
               label="Full access"
               description={
@@ -1030,7 +1757,7 @@ function GeneralSection() {
               control={
                 <SettingsToggle
                   checked={agent.showFullAccessPermissions}
-                  ariaLabel="Show Full access in the composer"
+                  ariaLabel="Full access"
                   onChange={(checked) => {
                     void updateSettings("agent", {
                       showFullAccessPermissions: checked,
@@ -1052,7 +1779,7 @@ function GeneralSection() {
               description="Where files and folders open by default"
               control={<DefaultOpenDestinationSelect value={general.defaultOpenTarget} />}
             />
-            {showAgentEnvironment ? (
+            {isWindows ? (
               <SettingsRow
                 label="Agent environment"
                 description="Choose where the agent runs on Windows"
@@ -1067,7 +1794,7 @@ function GeneralSection() {
                 }
               />
             ) : null}
-            {showIntegratedTerminalShell ? (
+            {isWindows ? (
               <SettingsRow
                 label="Integrated terminal shell"
                 description="Choose which shell opens in the integrated terminal."
@@ -1075,9 +1802,7 @@ function GeneralSection() {
                   <IntegratedTerminalShellSelect
                     value={general.integratedTerminalShell}
                     onChange={(value) => {
-                      void updateSettings("general", {
-                        integratedTerminalShell: value,
-                      });
+                      void updateSettings("general", { integratedTerminalShell: value });
                     }}
                   />
                 }
@@ -1095,13 +1820,36 @@ function GeneralSection() {
                 />
               }
             />
+            <PopoutWindowHotkeyRow
+              value={general.popoutWindowHotkey}
+              onChange={(nextHotkey) =>
+                updateSettings("general", { popoutWindowHotkey: nextHotkey })
+              }
+            />
+            {!isWindows ? (
+              <SettingsRow
+                label="Prevent sleep while running"
+                description="Keep your computer awake while Codex is running a chat"
+                control={
+                  <SettingsToggle
+                    checked={general.preventSleepWhileRunning}
+                    ariaLabel="Prevent sleep while running"
+                    onChange={(checked) => {
+                      void updateSettings("general", {
+                        preventSleepWhileRunning: checked,
+                      });
+                    }}
+                  />
+                }
+              />
+            ) : null}
             <SettingsRow
-              label={`Require ${modifierSymbol} + enter to send long prompts`}
-              description={`When enabled, multiline prompts require ${modifierSymbol} + enter to send.`}
+              label={`Require ${modifierLabel} + enter to send long prompts`}
+              description={`When enabled, multiline prompts require ${modifierLabel} + enter to send.`}
               control={
                 <SettingsToggle
                   checked={general.composerEnterBehavior === "cmdIfMultiline"}
-                  ariaLabel={`Require ${modifierSymbol} + enter to send long prompts`}
+                  ariaLabel={`Require ${modifierLabel} + enter to send long prompts`}
                   onChange={(checked) => {
                     void updateSettings("general", {
                       composerEnterBehavior: checked ? "cmdIfMultiline" : "enter",
@@ -1156,23 +1904,22 @@ function GeneralSection() {
                 />
               }
             />
-            {showPreventSleepWhileRunning ? (
-              <SettingsRow
-                label="Prevent sleep while running"
-                description="Keep your computer awake while Codex is running a chat"
-                control={
-                  <SettingsToggle
-                    checked={general.preventSleepWhileRunning}
-                    ariaLabel="Prevent sleep while running"
-                    onChange={(checked) => {
-                      void updateSettings("general", {
-                        preventSleepWhileRunning: checked,
-                      });
-                    }}
-                  />
-                }
-              />
-            ) : null}
+            <SettingsRow
+              label="Suggested prompts"
+              description="Suggest what to do next by searching project files and connected apps"
+              control={
+                <SettingsToggle
+                  checked={general.suggestedPromptsEnabled}
+                  ariaLabel="Suggested prompts"
+                  onChange={(checked) => {
+                    void updateSettings("general", {
+                      suggestedPromptsEnabled: checked,
+                    });
+                  }}
+                />
+              }
+            />
+            <ExternalAgentImportRow />
           </SettingsSurface>
         </SettingsGroupContent>
       </SettingsGroup>
@@ -1230,6 +1977,313 @@ function GeneralSection() {
   );
 }
 
+function AppearanceSection() {
+  const appearance = useAppStore((state) => state.settings.appearance);
+  const platform = useAppStore((state) => state.bootstrap.platform);
+  const updateSettings = useAppStore((state) => state.updateSettings);
+
+  return (
+    <SettingsContentLayout title="Appearance">
+      <SettingsGroup className="gap-2">
+        <SettingsGroupContent>
+          <SettingsSurface>
+            <SettingsRow
+              label="Theme"
+              description="Use light, dark, or match your system"
+              className="gap-6"
+              control={
+                <SegmentedToggle
+                  value={appearance.themeMode}
+                  options={themeModeOptions}
+                  onChange={(value) => {
+                    void updateSettings("appearance", { themeMode: value });
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              label="Use pointer cursors"
+              description="Change the cursor to a pointer when hovering over interactive elements"
+              control={
+                <SettingsToggle
+                  checked={appearance.usePointerCursors}
+                  ariaLabel="Use pointer cursors"
+                  onChange={(checked) => {
+                    void updateSettings("appearance", { usePointerCursors: checked });
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              label="UI font size"
+              description="Adjust the base size used for the Codex UI"
+              control={
+                <SettingsNumberInput
+                  ariaLabel="UI font size"
+                  value={appearance.uiFontSize}
+                  min={11}
+                  max={16}
+                  onChange={(value) => {
+                    void updateSettings("appearance", { uiFontSize: value });
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              label="Code font size"
+              description="Adjust the base size used for code across chats and diffs"
+              control={
+                <SettingsNumberInput
+                  ariaLabel="Code font size"
+                  value={appearance.codeFontSize}
+                  min={8}
+                  max={24}
+                  onChange={(value) => {
+                    void updateSettings("appearance", { codeFontSize: value });
+                  }}
+                />
+              }
+            />
+            {isMacPlatform(platform) ? (
+              <SettingsRow
+                label="Font Smoothing"
+                description="Use native macOS font anti-aliasing"
+                control={
+                  <SettingsToggle
+                    checked={appearance.fontSmoothing}
+                    ariaLabel="Font Smoothing"
+                    onChange={(checked) => {
+                      void updateSettings("appearance", { fontSmoothing: checked });
+                    }}
+                  />
+                }
+              />
+            ) : null}
+          </SettingsSurface>
+        </SettingsGroupContent>
+      </SettingsGroup>
+
+      <SettingsGroup className="gap-2">
+        <SettingsGroupHeader title="Pets" />
+        <SettingsGroupContent>
+          <SettingsSurface>
+            <SettingsRow
+              label="Show pet"
+              description="Show the floating Codex pet in the app window"
+              control={
+                <SettingsToggle
+                  checked={appearance.petVisible}
+                  ariaLabel="Show pet"
+                  onChange={(checked) => {
+                    void updateSettings("appearance", { petVisible: checked });
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              label="Selected pet"
+              description="The currently selected Codex pet"
+              control={<PetSelect value={appearance.selectedPet} />}
+            />
+            <SettingsRow
+              label="Custom pets"
+              description={<span className="font-mono text-xs">{appearance.customPetFolder}</span>}
+              control={
+                <SettingsActionButton
+                  onClick={() => {
+                    openLocalPathIfAvailable(appearance.customPetFolder);
+                  }}
+                >
+                  Open folder
+                  <ExternalArrowIcon className="icon-2xs" />
+                </SettingsActionButton>
+              }
+            />
+          </SettingsSurface>
+        </SettingsGroupContent>
+      </SettingsGroup>
+    </SettingsContentLayout>
+  );
+}
+
+function ConfigurationSection() {
+  const agent = useAppStore((state) => state.settings.agent);
+  const updateSettings = useAppStore((state) => state.updateSettings);
+  const configPathIsAbsolute = /^[A-Za-z]:\\/.test(agent.configPath) || agent.configPath.startsWith("/");
+
+  return (
+    <SettingsContentLayout
+      title="Configuration"
+      subtitle={
+        <>
+          Configure approval policy and sandbox settings.{" "}
+          <ElevatedRiskLink>Learn more</ElevatedRiskLink>
+        </>
+      }
+    >
+      <SettingsGroup className="gap-2">
+        <SettingsGroupHeader title="Custom config.toml settings" />
+        <SettingsGroupContent>
+          <SettingsSurface>
+            <SettingsRow
+              label="config.toml"
+              description={
+                <>
+                  Edit your config to customize agent behavior. Restart Codex after editing to apply changes.
+                  {agent.configPath ? (
+                    <>
+                      {" "}
+                      <span className="font-mono text-xs">{agent.configPath}</span>
+                    </>
+                  ) : null}
+                </>
+              }
+              control={
+                <SettingsActionButton
+                  disabled={!configPathIsAbsolute}
+                  onClick={() => {
+                    if (configPathIsAbsolute) {
+                      openLocalPathIfAvailable(agent.configPath);
+                    }
+                  }}
+                >
+                  Open
+                </SettingsActionButton>
+              }
+            />
+          </SettingsSurface>
+        </SettingsGroupContent>
+      </SettingsGroup>
+
+      <SettingsGroup className="gap-2">
+        <SettingsGroupContent>
+          <SettingsSurface>
+            <SettingsRow
+              label="Approval policy"
+              description="Choose when Codex asks for approval"
+              control={
+                <ApprovalPolicySelect
+                  value={agent.approvalPolicy}
+                  onChange={(value) => {
+                    void updateSettings("agent", { approvalPolicy: value });
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              label="Sandbox settings"
+              description="Choose how much Codex can do when running commands"
+              control={
+                <SandboxModeSelect
+                  value={agent.sandboxMode}
+                  onChange={(value) => {
+                    void updateSettings("agent", { sandboxMode: value });
+                  }}
+                />
+              }
+            />
+            {agent.sandboxMode === "workspace-write" ? (
+              <SettingsRow
+                label="Allow network access"
+                description="Allow network access when the sandbox is set to workspace write"
+                control={
+                  <SettingsToggle
+                    checked={agent.networkAccess}
+                    ariaLabel="Allow network access"
+                    onChange={(checked) => {
+                      void updateSettings("agent", { networkAccess: checked });
+                    }}
+                  />
+                }
+              />
+            ) : null}
+          </SettingsSurface>
+        </SettingsGroupContent>
+      </SettingsGroup>
+
+      <SettingsGroup className="gap-2">
+        <SettingsGroupHeader title="Workspace Dependencies" />
+        <SettingsGroupContent>
+          <SettingsSurface>
+            <SettingsRow
+              label="Current version"
+              description={
+                agent.dependencyHealth === "healthy"
+                  ? undefined
+                  : "Run diagnostics or reinstall if tool calls fail"
+              }
+              control={
+                <StatusText>
+                  {agent.dependencyBundleVersion || "Not installed"}
+                </StatusText>
+              }
+            />
+            <SettingsRow
+              label="Codex dependencies"
+              description="Allow Codex to install and expose bundled Node.js and Python tools"
+              control={
+                <SettingsToggle
+                  checked={agent.dependenciesEnabled}
+                  ariaLabel="Codex dependencies"
+                  onChange={(checked) => {
+                    void updateSettings("agent", { dependenciesEnabled: checked });
+                  }}
+                />
+              }
+            />
+            <SettingsRow
+              label="Diagnose issues in Codex Workspace"
+              description="Checks the current bundle and records diagnostic logs"
+              control={
+                <SettingsActionButton disabled onClick={() => undefined}>
+                  Diagnose
+                </SettingsActionButton>
+              }
+            />
+            <SettingsRow
+              label="Reset and install Workspace"
+              description="Deletes the local bundle, downloads it again, and reloads tools"
+              control={
+                <SettingsActionButton disabled onClick={() => undefined}>
+                  Reinstall
+                </SettingsActionButton>
+              }
+            />
+          </SettingsSurface>
+        </SettingsGroupContent>
+      </SettingsGroup>
+
+      <SettingsGroup className="gap-2">
+        <SettingsGroupHeader title="Experimental features (Beta)" />
+        <SettingsGroupContent>
+          <SettingsSurface>
+            <SettingsRow
+              label="No beta experimental features available"
+              control={<span className="h-5 w-8" />}
+            />
+          </SettingsSurface>
+        </SettingsGroupContent>
+      </SettingsGroup>
+
+      <SettingsGroup className="gap-2">
+        <SettingsGroupContent>
+          <SettingsSurface>
+            <SettingsRow
+              label="Open source licenses"
+              description="Third-party notices for bundled dependencies"
+              control={
+                <SettingsActionButton disabled onClick={() => undefined}>
+                  View
+                </SettingsActionButton>
+              }
+            />
+          </SettingsSurface>
+        </SettingsGroupContent>
+      </SettingsGroup>
+    </SettingsContentLayout>
+  );
+}
+
 function NotImplementedSection({
   title,
   description,
@@ -1247,29 +2301,11 @@ function NotImplementedSection({
   );
 }
 
-function AppearanceSection() {
-  return (
-    <NotImplementedSection
-      title="Appearance"
-      description="Appearance settings are still being reconstructed from the original bundles."
-    />
-  );
-}
-
-function ConfigurationSection() {
-  return (
-    <NotImplementedSection
-      title="Configuration"
-      description="Configuration settings are still being reconstructed from the original bundles."
-    />
-  );
-}
-
 function AccountSection() {
   return (
     <NotImplementedSection
       title="Account"
-      description="Account settings are still being reconstructed from the original bundles."
+      description="Account settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1278,7 +2314,7 @@ function PersonalizationSection() {
   return (
     <NotImplementedSection
       title="Personalization"
-      description="Personalization settings are still being reconstructed from the original bundles."
+      description="Personalization settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1287,7 +2323,7 @@ function McpServersSection() {
   return (
     <NotImplementedSection
       title="MCP servers"
-      description="MCP settings are still being reconstructed from the original bundles."
+      description="MCP settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1296,7 +2332,7 @@ function HooksSection() {
   return (
     <NotImplementedSection
       title="Hooks"
-      description="Hooks settings are still being reconstructed from the original bundles."
+      description="Hooks settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1305,7 +2341,7 @@ function KeyboardShortcutsSection() {
   return (
     <NotImplementedSection
       title="Keyboard shortcuts"
-      description="Keyboard shortcuts settings are still being reconstructed from the original bundles."
+      description="Keyboard shortcuts are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1314,7 +2350,7 @@ function GitSection() {
   return (
     <NotImplementedSection
       title="Git"
-      description="Git settings are still being reconstructed from the original bundles."
+      description="Git settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1323,7 +2359,7 @@ function ConnectionsSection() {
   return (
     <NotImplementedSection
       title="Connections"
-      description="Connection settings are still being reconstructed from the original bundles."
+      description="Connection settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1332,7 +2368,7 @@ function UsageSection() {
   return (
     <NotImplementedSection
       title="Usage"
-      description="Usage settings are still being reconstructed from the original bundles."
+      description="Usage settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1341,7 +2377,7 @@ function EnvironmentsSection() {
   return (
     <NotImplementedSection
       title="Environments"
-      description="Environment settings are still being reconstructed from the original bundles."
+      description="Environment settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1350,7 +2386,7 @@ function WorktreesSection() {
   return (
     <NotImplementedSection
       title="Worktrees"
-      description="Worktree settings are still being reconstructed from the original bundles."
+      description="Worktree settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1359,7 +2395,7 @@ function BrowserSection() {
   return (
     <NotImplementedSection
       title="Browser"
-      description="Browser settings are still being reconstructed from the original bundles."
+      description="Browser settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1368,7 +2404,7 @@ function ComputerUseSection() {
   return (
     <NotImplementedSection
       title="Computer use"
-      description="Computer use settings are still being reconstructed from the original bundles."
+      description="Computer use settings are still being reconstructed from the original desktop bundles."
     />
   );
 }
@@ -1377,7 +2413,7 @@ function ArchivedChatsSection() {
   return (
     <NotImplementedSection
       title="Archived chats"
-      description="Archived chat settings are still being reconstructed from the original bundles."
+      description="Archived chats are still being reconstructed from the original desktop bundles."
     />
   );
 }

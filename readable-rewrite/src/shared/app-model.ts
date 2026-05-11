@@ -126,12 +126,22 @@ export type GeneralSettingsModel = {
   notificationsPermissionsEnabled: boolean;
   notificationsQuestionsEnabled: boolean;
   preventSleepWhileRunning: boolean;
+  externalAgentImportState:
+    | "idle"
+    | "checking"
+    | "ready"
+    | "remaining"
+    | "imported"
+    | "completed";
+  externalAgentImportLastImportedAt: string | null;
 };
 
 export type AppearanceSettingsModel = {
   themeMode: ThemeMode;
-  density: "comfortable" | "compact";
-  codeFontScale: "small" | "medium" | "large";
+  usePointerCursors: boolean;
+  uiFontSize: number;
+  codeFontSize: number;
+  fontSmoothing: boolean;
   petVisible: boolean;
   selectedPet: string;
   customPetFolder: string;
